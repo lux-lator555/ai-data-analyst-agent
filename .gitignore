@@ -1,0 +1,20 @@
+# Environment
+venv/
+.env
+
+# API keys
+*.env
+secrets.txt
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Jupyter checkpoints
+.ipynb_checkpoints/
+
+# OS files
+.DS_Store
+Thumbs.db
