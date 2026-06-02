@@ -162,13 +162,16 @@ ANALYSIS FINDINGS:
 
 Please provide:
 1. **Key Findings** — The 3-5 most important insights from the data in plain English
-2. **Recommended Initiatives** — Specific actions the business should take, each with:
+2. **Recommended Initiatives** — Ranked from highest to lowest priority, each with:
+   - Rank (1 being most important)
    - What to do
    - Why it matters
    - Expected impact
-   - Priority (High/Medium/Low)
+   - Effort required (Low/Medium/High)
+   - Priority score (High/Medium/Low)
 3. **KPIs to Track** — How to measure success for each initiative
-4. **Quick Wins** — 1-2 things that could be implemented immediately with low effort
+4. **Quick Wins** — 1-2 things that could be implemented immediately with low effort and high impact
+5. **6 Month Roadmap** — A suggested timeline for implementing the initiatives in order
 
 Write this for a business leader, not a data scientist.
 Avoid technical jargon. Focus on business impact and actionable steps.
