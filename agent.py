@@ -144,6 +144,44 @@ def model_msg(text):
     return types.Content(role="model", parts=[types.Part(text=text)])
 
 
+def get_business_recommendations(summary: str, api_key: str) -> str:
+    """
+    Takes the agent's analysis summary and generates actionable
+    business recommendations using a second Gemini call.
+    """
+    client = genai.Client(api_key=api_key)
+
+    prompt = f"""
+You are a senior business strategy consultant reviewing a data analysis report.
+
+Based on the following data analysis findings, generate a structured set of
+business recommendations for a non-technical business leader.
+
+ANALYSIS FINDINGS:
+{summary}
+
+Please provide:
+1. **Key Findings** — The 3-5 most important insights from the data in plain English
+2. **Recommended Initiatives** — Specific actions the business should take, each with:
+   - What to do
+   - Why it matters
+   - Expected impact
+   - Priority (High/Medium/Low)
+3. **KPIs to Track** — How to measure success for each initiative
+4. **Quick Wins** — 1-2 things that could be implemented immediately with low effort
+
+Write this for a business leader, not a data scientist.
+Avoid technical jargon. Focus on business impact and actionable steps.
+"""
+
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=prompt
+    )
+
+    return response.text
+
+
 def run_agent(goal: str, df, api_key: str, max_turns: int = 8):
     """
     Main agent loop. Returns a dict with the final summary and any charts.
@@ -203,8 +241,14 @@ Start by reasoning about what steps to take, then write Python code to begin.
         else:
             messages.append(user_msg("Continue your analysis."))
 
+    # Generate business recommendations from the final summary
+    recommendations = ""
+    if final_summary:
+        recommendations = get_business_recommendations(final_summary, api_key)
+
     return {
         "summary": final_summary,
         "charts": all_charts,
-        "turns": len(messages)
+        "turns": len(messages),
+        "recommendations": recommendations
     }
