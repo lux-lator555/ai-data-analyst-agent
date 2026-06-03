@@ -12,7 +12,10 @@ app = FastAPI(title="AI Data Analyst Agent API")
 # Allow requests from the frontend (React PWA)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "https://ai-agent-frontend-2ij.pages.dev",
+        "http://localhost:3000"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -32,7 +35,7 @@ async def analyze(
 ):
     """
     Accepts a CSV file, a goal, and a Gemini API key.
-    Returns the agent's summary and any generated charts as base64 strings.
+    Returns the agent's summary, charts, and business recommendations.
     """
     # Read the uploaded CSV
     contents = await file.read()
@@ -45,6 +48,7 @@ async def analyze(
         "summary": result["summary"],
         "charts": result["charts"],
         "turns": result["turns"],
+        "recommendations": result["recommendations"],
         "rows": len(df),
         "columns": len(df.columns)
     }
