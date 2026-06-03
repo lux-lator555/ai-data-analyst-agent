@@ -255,3 +255,55 @@ Start by reasoning about what steps to take, then write Python code to begin.
         "turns": len(messages),
         "recommendations": recommendations
     }
+
+
+def followup_chat(
+    question: str,
+    original_summary: str,
+    original_recommendations: str,
+    conversation_history: list,
+    api_key: str
+) -> str:
+    """
+    Handles follow-up questions about the analysis.
+    Uses the original analysis context plus conversation history.
+    """
+    client = genai.Client(api_key=api_key)
+
+    # Build the context from the original analysis
+    system_context = f"""
+You are an expert data scientist and business analyst.
+You previously analyzed a dataset and produced the following results:
+
+TECHNICAL ANALYSIS:
+{original_summary}
+
+BUSINESS RECOMMENDATIONS:
+{original_recommendations}
+
+Your job is to answer follow-up questions about this analysis.
+Be specific, reference the actual findings, and give actionable answers.
+Keep responses concise and clear — the user is likely a business leader.
+If asked to summarize for a specific audience, adjust your language accordingly.
+If asked a what-if question, reason through it based on the data findings.
+"""
+
+    # Build conversation messages
+    messages = [user_msg(system_context)]
+
+    # Add conversation history
+    for entry in conversation_history:
+        if entry["role"] == "user":
+            messages.append(user_msg(entry["content"]))
+        else:
+            messages.append(model_msg(entry["content"]))
+
+    # Add the new question
+    messages.append(user_msg(question))
+
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=messages
+    )
+
+    return response.text
