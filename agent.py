@@ -181,7 +181,7 @@ Avoid technical jargon. Focus on business impact and actionable steps.
 """
 
     response = client.models.generate_content(
-        model="gemini-2.0-flash",
+        model="gemini-2.5-flash",
         contents=prompt
     )
 
@@ -214,7 +214,7 @@ Start by reasoning about what steps to take, then write Python code to begin.
         for attempt in range(3):
             try:
                 response = client.models.generate_content(
-                    model="gemini-2.0-flash",
+                    model="gemini-2.5-flash",
                     config=types.GenerateContentConfig(system_instruction=SYSTEM_INSTRUCTION),
                     contents=messages
                 )
@@ -305,7 +305,7 @@ If asked a what-if question, reason through it based on the data findings.
     messages.append(user_msg(question))
 
     response = client.models.generate_content(
-        model="gemini-2.0-flash",
+        model="gemini-2.5-flash",
         contents=messages
     )
 
