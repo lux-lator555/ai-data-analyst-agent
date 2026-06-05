@@ -241,9 +241,17 @@ def get_confidence_scores(summary: str, api_key: str) -> dict:
     """
     client = genai.Client(api_key=api_key)
 
-    prompt = f"""
+   prompt = f"""
 You are a senior data scientist reviewing this analysis summary.
-Rate the confidence level of each key finding.
+Rate the confidence level of each key finding CRITICALLY and HONESTLY.
+
+IMPORTANT SCORING RULES:
+- If model accuracy is below 30% or near random chance, overall confidence MUST be LOW
+- If model accuracy is between 30-70%, overall confidence should be MEDIUM
+- If model accuracy is above 70%, overall confidence can be HIGH
+- If the summary mentions predictions are unreliable or not better than guessing, overall confidence MUST be LOW
+- Be conservative — it is better to under-promise than over-promise
+- Small datasets (under 500 rows) should reduce confidence by one level
 
 ANALYSIS SUMMARY:
 {summary}
