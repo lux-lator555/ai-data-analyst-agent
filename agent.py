@@ -88,9 +88,7 @@ def get_ml_tools(df):
 
 
 def run_python(code: str, df) -> tuple[str, list[str]]:
-    """
-    Executes Python code and returns (text_output, list_of_base64_charts).
-    """
+    """Executes Python code and returns (text_output, list_of_base64_charts)."""
     old_stdout = sys.stdout
     sys.stdout = buffer = io.StringIO()
     charts = []
@@ -137,10 +135,7 @@ Descriptive statistics:
 
 
 def get_data_quality_report(df) -> dict:
-    """
-    Analyzes the dataset for quality issues.
-    Returns a structured report of missing values, outliers, and duplicates.
-    """
+    """Analyzes the dataset for quality issues."""
     report = {
         "total_rows": len(df),
         "total_columns": len(df.columns),
@@ -150,14 +145,12 @@ def get_data_quality_report(df) -> dict:
         "recommendations": []
     }
 
-    # Check missing values
     for col in df.columns:
         missing = int(df[col].isna().sum())
         if missing > 0:
             pct = round((missing / len(df)) * 100, 1)
             report["missing_values"][col] = {"count": missing, "percentage": pct}
 
-    # Check outliers using IQR for numeric columns
     for col in df.select_dtypes(include=[np.number]).columns:
         Q1 = df[col].quantile(0.25)
         Q3 = df[col].quantile(0.75)
@@ -166,7 +159,6 @@ def get_data_quality_report(df) -> dict:
         if outlier_count > 0:
             report["outliers"][col] = outlier_count
 
-    # Generate recommendations
     if report["missing_values"]:
         report["recommendations"].append("Impute missing values with median for numeric columns")
     if report["outliers"]:
@@ -180,10 +172,7 @@ def get_data_quality_report(df) -> dict:
 
 
 def auto_detect_dataset(df, api_key: str) -> dict:
-    """
-    Scans the dataset columns and suggests the best analysis type and goal.
-    Returns a suggested goal and analysis type.
-    """
+    """Scans the dataset columns and suggests the best analysis type and goal."""
     client = genai.Client(api_key=api_key)
 
     prompt = f"""
@@ -207,7 +196,7 @@ Respond in this exact JSON format with no extra text:
 {{
   "problem_type": "classification|regression|clustering",
   "target_column": "column_name or null",
-  "suggested_goal": "Your suggested analysis goal here",
+  "suggested_goal": "Your detailed suggested analysis goal here",
   "recommended_models": ["Model1", "Model2"],
   "confidence": "high|medium|low",
   "reasoning": "Brief explanation of why"
@@ -236,12 +225,10 @@ Respond in this exact JSON format with no extra text:
 
 
 def get_confidence_scores(summary: str, api_key: str) -> dict:
-    """
-    Evaluates the analysis findings and returns confidence scores.
-    """
+    """Evaluates the analysis findings and returns confidence scores."""
     client = genai.Client(api_key=api_key)
 
-   prompt = f"""
+    prompt = f"""
 You are a senior data scientist reviewing this analysis summary.
 Rate the confidence level of each key finding CRITICALLY and HONESTLY.
 
@@ -287,10 +274,7 @@ Respond in this exact JSON format with no extra text:
 
 
 def get_business_recommendations(summary: str, api_key: str) -> str:
-    """
-    Takes the agent's analysis summary and generates actionable
-    business recommendations using a second Gemini call.
-    """
+    """Generates actionable business recommendations from the analysis summary."""
     client = genai.Client(api_key=api_key)
 
     prompt = f"""
@@ -347,9 +331,7 @@ def followup_chat(
     conversation_history: list,
     api_key: str
 ) -> str:
-    """
-    Handles follow-up questions about the analysis.
-    """
+    """Handles follow-up questions about the analysis."""
     client = genai.Client(api_key=api_key)
 
     system_context = f"""
@@ -388,13 +370,9 @@ If asked a what-if question, reason through it based on the data findings.
 
 
 def run_agent(goal: str, df, api_key: str, max_turns: int = 8):
-    """
-    Main agent loop. Returns a dict with the final summary, charts,
-    recommendations, data quality report, and confidence scores.
-    """
+    """Main agent loop. Returns a dict with all analysis results."""
     client = genai.Client(api_key=api_key)
 
-    # Generate data quality report
     quality_report = get_data_quality_report(df)
 
     dataset_context = f"""
@@ -412,7 +390,6 @@ Start by reasoning about what steps to take, then write Python code to begin.
     final_summary = ""
 
     for turn in range(max_turns):
-
         for attempt in range(3):
             try:
                 response = client.models.generate_content(
@@ -448,12 +425,10 @@ Start by reasoning about what steps to take, then write Python code to begin.
         else:
             messages.append(user_msg("Continue your analysis."))
 
-    # Generate business recommendations
     recommendations = ""
     if final_summary:
         recommendations = get_business_recommendations(final_summary, api_key)
 
-    # Generate confidence scores
     confidence_scores = {}
     if final_summary:
         confidence_scores = get_confidence_scores(final_summary, api_key)
