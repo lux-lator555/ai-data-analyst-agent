@@ -1,4 +1,4 @@
-# agent.py — Core agent logic (converted from Colab notebook)
+# agent.py — Core agent logic with auto-detect, data quality, and confidence scoring
 
 import io
 import os
@@ -90,7 +90,6 @@ def get_ml_tools(df):
 def run_python(code: str, df) -> tuple[str, list[str]]:
     """
     Executes Python code and returns (text_output, list_of_base64_charts).
-    Charts are returned as base64 strings so the API can send them to the frontend.
     """
     old_stdout = sys.stdout
     sys.stdout = buffer = io.StringIO()
@@ -99,7 +98,6 @@ def run_python(code: str, df) -> tuple[str, list[str]]:
     try:
         exec(code, get_ml_tools(df))
 
-        # Force-save any still-open figures
         for i, fig in enumerate(map(plt.figure, plt.get_fignums())):
             fig.savefig(f'chart_{i}.png', bbox_inches='tight')
             plt.close(fig)
@@ -112,7 +110,6 @@ def run_python(code: str, df) -> tuple[str, list[str]]:
     finally:
         sys.stdout = old_stdout
 
-    # Convert saved charts to base64 so they can be sent over the API
     saved_charts = [f for f in os.listdir('.') if f.endswith('.png')]
     for fname in saved_charts:
         with open(fname, 'rb') as f:
@@ -139,12 +136,141 @@ Descriptive statistics:
 """
 
 
-def user_msg(text):
-    return types.Content(role="user", parts=[types.Part(text=text)])
+def get_data_quality_report(df) -> dict:
+    """
+    Analyzes the dataset for quality issues.
+    Returns a structured report of missing values, outliers, and duplicates.
+    """
+    report = {
+        "total_rows": len(df),
+        "total_columns": len(df.columns),
+        "missing_values": {},
+        "outliers": {},
+        "duplicates": int(df.duplicated().sum()),
+        "recommendations": []
+    }
+
+    # Check missing values
+    for col in df.columns:
+        missing = int(df[col].isna().sum())
+        if missing > 0:
+            pct = round((missing / len(df)) * 100, 1)
+            report["missing_values"][col] = {"count": missing, "percentage": pct}
+
+    # Check outliers using IQR for numeric columns
+    for col in df.select_dtypes(include=[np.number]).columns:
+        Q1 = df[col].quantile(0.25)
+        Q3 = df[col].quantile(0.75)
+        IQR = Q3 - Q1
+        outlier_count = int(((df[col] < Q1 - 1.5 * IQR) | (df[col] > Q3 + 1.5 * IQR)).sum())
+        if outlier_count > 0:
+            report["outliers"][col] = outlier_count
+
+    # Generate recommendations
+    if report["missing_values"]:
+        report["recommendations"].append("Impute missing values with median for numeric columns")
+    if report["outliers"]:
+        report["recommendations"].append("Consider capping outliers at the 99th percentile")
+    if report["duplicates"] > 0:
+        report["recommendations"].append(f"Remove {report['duplicates']} duplicate rows before modeling")
+    if not report["recommendations"]:
+        report["recommendations"].append("Dataset looks clean — no major issues detected!")
+
+    return report
 
 
-def model_msg(text):
-    return types.Content(role="model", parts=[types.Part(text=text)])
+def auto_detect_dataset(df, api_key: str) -> dict:
+    """
+    Scans the dataset columns and suggests the best analysis type and goal.
+    Returns a suggested goal and analysis type.
+    """
+    client = genai.Client(api_key=api_key)
+
+    prompt = f"""
+You are a data scientist. Analyze this dataset structure and suggest the best analysis.
+
+Dataset info:
+{get_dataset_summary(df)}
+
+Based on the columns and data types, identify:
+1. What type of problem this is (classification, regression, clustering)
+2. Which column should be the target variable (if any)
+3. A specific analysis goal in 1-2 sentences
+4. The recommended ML model(s)
+
+Respond in this exact JSON format with no extra text:
+{{
+  "problem_type": "classification|regression|clustering",
+  "target_column": "column_name or null",
+  "suggested_goal": "Your suggested analysis goal here",
+  "recommended_models": ["Model1", "Model2"],
+  "confidence": "high|medium|low",
+  "reasoning": "Brief explanation of why"
+}}
+"""
+
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=prompt
+    )
+
+    try:
+        import json
+        text = response.text.strip()
+        text = text.replace("```json", "").replace("```", "").strip()
+        return json.loads(text)
+    except Exception:
+        return {
+            "problem_type": "unknown",
+            "target_column": None,
+            "suggested_goal": "Analyze this dataset and identify key patterns and insights.",
+            "recommended_models": ["Random Forest"],
+            "confidence": "low",
+            "reasoning": "Could not automatically detect dataset type."
+        }
+
+
+def get_confidence_scores(summary: str, api_key: str) -> dict:
+    """
+    Evaluates the analysis findings and returns confidence scores.
+    """
+    client = genai.Client(api_key=api_key)
+
+    prompt = f"""
+You are a senior data scientist reviewing this analysis summary.
+Rate the confidence level of each key finding.
+
+ANALYSIS SUMMARY:
+{summary}
+
+Respond in this exact JSON format with no extra text:
+{{
+  "overall_confidence": "high|medium|low",
+  "scores": [
+    {{"finding": "Brief description of finding", "confidence": "high|medium|low", "reason": "Why this confidence level"}},
+    {{"finding": "Brief description of finding", "confidence": "high|medium|low", "reason": "Why this confidence level"}},
+    {{"finding": "Brief description of finding", "confidence": "high|medium|low", "reason": "Why this confidence level"}}
+  ],
+  "caveats": "Any important limitations or caveats about the analysis"
+}}
+"""
+
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=prompt
+    )
+
+    try:
+        import json
+        text = response.text.strip()
+        text = text.replace("```json", "").replace("```", "").strip()
+        return json.loads(text)
+    except Exception:
+        return {
+            "overall_confidence": "medium",
+            "scores": [],
+            "caveats": "Confidence scoring unavailable."
+        }
 
 
 def get_business_recommendations(summary: str, api_key: str) -> str:
@@ -175,6 +301,11 @@ Please provide:
 3. **KPIs to Track** — How to measure success for each initiative
 4. **Quick Wins** — 1-2 things that could be implemented immediately with low effort and high impact
 5. **6 Month Roadmap** — A suggested timeline for implementing the initiatives in order
+6. **What-If Scenarios** — 2-3 financial impact estimates such as:
+   - "If we retained X% more at-risk customers, estimated additional revenue would be $X"
+   - "If we reduced delays by X%, estimated cost savings would be $X"
+   - "If we improved performance scores by X points, estimated salary savings would be $X"
+   Use realistic estimates based on the data findings. Label this section clearly as **What-If Scenarios**.
 
 Write this for a business leader, not a data scientist.
 Avoid technical jargon. Focus on business impact and actionable steps.
@@ -188,11 +319,70 @@ Avoid technical jargon. Focus on business impact and actionable steps.
     return response.text
 
 
-def run_agent(goal: str, df, api_key: str, max_turns: int = 8):
+def user_msg(text):
+    return types.Content(role="user", parts=[types.Part(text=text)])
+
+
+def model_msg(text):
+    return types.Content(role="model", parts=[types.Part(text=text)])
+
+
+def followup_chat(
+    question: str,
+    original_summary: str,
+    original_recommendations: str,
+    conversation_history: list,
+    api_key: str
+) -> str:
     """
-    Main agent loop. Returns a dict with the final summary and any charts.
+    Handles follow-up questions about the analysis.
     """
     client = genai.Client(api_key=api_key)
+
+    system_context = f"""
+You are an expert data scientist and business analyst.
+You previously analyzed a dataset and produced the following results:
+
+TECHNICAL ANALYSIS:
+{original_summary}
+
+BUSINESS RECOMMENDATIONS:
+{original_recommendations}
+
+Your job is to answer follow-up questions about this analysis.
+Be specific, reference the actual findings, and give actionable answers.
+Keep responses concise and clear — the user is likely a business leader.
+If asked to summarize for a specific audience, adjust your language accordingly.
+If asked a what-if question, reason through it based on the data findings.
+"""
+
+    messages = [user_msg(system_context)]
+
+    for entry in conversation_history:
+        if entry["role"] == "user":
+            messages.append(user_msg(entry["content"]))
+        else:
+            messages.append(model_msg(entry["content"]))
+
+    messages.append(user_msg(question))
+
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=messages
+    )
+
+    return response.text
+
+
+def run_agent(goal: str, df, api_key: str, max_turns: int = 8):
+    """
+    Main agent loop. Returns a dict with the final summary, charts,
+    recommendations, data quality report, and confidence scores.
+    """
+    client = genai.Client(api_key=api_key)
+
+    # Generate data quality report
+    quality_report = get_data_quality_report(df)
 
     dataset_context = f"""
 Here is the dataset you will be analyzing (as a pandas DataFrame called 'df'):
@@ -210,7 +400,6 @@ Start by reasoning about what steps to take, then write Python code to begin.
 
     for turn in range(max_turns):
 
-        # Retry up to 3 times if Gemini is temporarily unavailable
         for attempt in range(3):
             try:
                 response = client.models.generate_content(
@@ -230,7 +419,6 @@ Start by reasoning about what steps to take, then write Python code to begin.
         messages.append(model_msg(reply))
 
         if "FINAL ANSWER:" in reply:
-            # Run ALL code blocks in the final message
             code_blocks = reply.split("```python")[1:]
             for block in code_blocks:
                 code = block.split("```")[0].strip()
@@ -247,66 +435,21 @@ Start by reasoning about what steps to take, then write Python code to begin.
         else:
             messages.append(user_msg("Continue your analysis."))
 
-    # Generate business recommendations from the final summary
+    # Generate business recommendations
     recommendations = ""
     if final_summary:
         recommendations = get_business_recommendations(final_summary, api_key)
+
+    # Generate confidence scores
+    confidence_scores = {}
+    if final_summary:
+        confidence_scores = get_confidence_scores(final_summary, api_key)
 
     return {
         "summary": final_summary,
         "charts": all_charts,
         "turns": len(messages),
-        "recommendations": recommendations
+        "recommendations": recommendations,
+        "quality_report": quality_report,
+        "confidence_scores": confidence_scores
     }
-
-
-def followup_chat(
-    question: str,
-    original_summary: str,
-    original_recommendations: str,
-    conversation_history: list,
-    api_key: str
-) -> str:
-    """
-    Handles follow-up questions about the analysis.
-    Uses the original analysis context plus conversation history.
-    """
-    client = genai.Client(api_key=api_key)
-
-    # Build the context from the original analysis
-    system_context = f"""
-You are an expert data scientist and business analyst.
-You previously analyzed a dataset and produced the following results:
-
-TECHNICAL ANALYSIS:
-{original_summary}
-
-BUSINESS RECOMMENDATIONS:
-{original_recommendations}
-
-Your job is to answer follow-up questions about this analysis.
-Be specific, reference the actual findings, and give actionable answers.
-Keep responses concise and clear — the user is likely a business leader.
-If asked to summarize for a specific audience, adjust your language accordingly.
-If asked a what-if question, reason through it based on the data findings.
-"""
-
-    # Build conversation messages
-    messages = [user_msg(system_context)]
-
-    # Add conversation history
-    for entry in conversation_history:
-        if entry["role"] == "user":
-            messages.append(user_msg(entry["content"]))
-        else:
-            messages.append(model_msg(entry["content"]))
-
-    # Add the new question
-    messages.append(user_msg(question))
-
-    response = client.models.generate_content(
-        model="gemini-2.5-flash",
-        contents=messages
-    )
-
-    return response.text

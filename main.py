@@ -7,11 +7,10 @@ import pandas as pd
 from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from agent import run_agent, followup_chat
+from agent import run_agent, followup_chat, auto_detect_dataset
 
 app = FastAPI(title="AI Data Analyst Agent API")
 
-# Allow requests from the frontend (React PWA)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -34,6 +33,10 @@ class FollowUpRequest(BaseModel):
     api_key: str
 
 
+class AutoDetectRequest(BaseModel):
+    api_key: str
+
+
 @app.get("/")
 def root():
     return {"status": "AI Data Analyst Agent API is running!"}
@@ -45,13 +48,8 @@ async def analyze(
     goal: str = Form(...),
     api_key: str = Form(...)
 ):
-    """
-    Accepts a CSV file, a goal, and a Gemini API key.
-    Returns the agent's summary, charts, and business recommendations.
-    """
     contents = await file.read()
     df = pd.read_csv(io.BytesIO(contents))
-
     result = run_agent(goal=goal, df=df, api_key=api_key)
 
     return {
@@ -59,17 +57,26 @@ async def analyze(
         "charts": result["charts"],
         "turns": result["turns"],
         "recommendations": result["recommendations"],
+        "quality_report": result["quality_report"],
+        "confidence_scores": result["confidence_scores"],
         "rows": len(df),
         "columns": len(df.columns)
     }
 
 
+@app.post("/autodetect")
+async def autodetect(
+    file: UploadFile = File(...),
+    api_key: str = Form(...)
+):
+    contents = await file.read()
+    df = pd.read_csv(io.BytesIO(contents))
+    result = auto_detect_dataset(df, api_key)
+    return result
+
+
 @app.post("/followup")
 async def followup(request: FollowUpRequest):
-    """
-    Accepts a follow-up question and conversation history.
-    Returns the agent's response based on the original analysis context.
-    """
     response = followup_chat(
         question=request.question,
         original_summary=request.original_summary,
@@ -80,5 +87,4 @@ async def followup(request: FollowUpRequest):
         ],
         api_key=request.api_key
     )
-
     return {"response": response}
