@@ -195,7 +195,12 @@ Dataset info:
 Based on the columns and data types, identify:
 1. What type of problem this is (classification, regression, clustering)
 2. Which column should be the target variable (if any)
-3. A specific analysis goal in 1-2 sentences
+3. A detailed analysis goal in 4-5 sentences that a non-technical business user can understand. Include:
+   - What business question we are trying to answer
+   - Which ML models to run and why
+   - What metrics to evaluate model performance
+   - What charts and visualizations to generate
+   - What business insights and recommendations to look for
 4. The recommended ML model(s)
 
 Respond in this exact JSON format with no extra text:
