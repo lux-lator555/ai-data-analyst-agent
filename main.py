@@ -33,10 +33,6 @@ class FollowUpRequest(BaseModel):
     api_key: str
 
 
-class AutoDetectRequest(BaseModel):
-    api_key: str
-
-
 @app.get("/")
 def root():
     return {"status": "AI Data Analyst Agent API is running!"}
@@ -55,6 +51,7 @@ async def analyze(
     return {
         "summary": result["summary"],
         "charts": result["charts"],
+        "plotly_charts": result["plotly_charts"],
         "turns": result["turns"],
         "recommendations": result["recommendations"],
         "quality_report": result["quality_report"],
