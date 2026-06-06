@@ -1,4 +1,4 @@
-# agent.py — Core agent logic with Plotly, SHAP, auto-detect, data quality, and confidence scoring
+# agent.py — Core agent logic with auto-detect, data quality, and confidence scoring
 
 import io
 import os
@@ -24,9 +24,6 @@ from sklearn.metrics import (
     mean_squared_error, mean_absolute_error, r2_score
 )
 from sklearn.preprocessing import LabelEncoder, StandardScaler
-import plotly
-import plotly.express as px
-import plotly.graph_objects as go
 import shap
 
 SYSTEM_INSTRUCTION = """
@@ -53,27 +50,20 @@ You are given a dataset and a goal. You reason step by step like a senior data s
 7. GENERATE SHAP values to explain model predictions:
    - Use shap.TreeExplainer for Random Forest models
    - Use shap.LinearExplainer for Logistic/Linear Regression
-   - Generate a SHAP summary plot and save as a Plotly chart
    - Print the top 5 most impactful features with their average SHAP values
-8. VISUALIZE results:
-- Generate matplotlib charts saved as PNG:
-  plt.savefig('chart.png', bbox_inches='tight'); plt.close()
-- Then ALSO generate the same chart as Plotly:
-  import plotly.io as pio
-  chart_json = pio.to_json(fig)
-  with open('chart.plotly', 'w') as f:
-      f.write(chart_json)
-- Generate at least 2 charts: confusion matrix and feature importance
-- After saving each chart print: "Chart saved successfully"
-- Never use plt.show() or fig.show()
+   - Generate a SHAP feature importance bar chart using matplotlib
+8. VISUALIZE results using matplotlib:
+   - Always save charts with plt.savefig('chart.png', bbox_inches='tight'); plt.close()
+   - Never use plt.show()
+   - Generate confusion matrix, feature importance, and SHAP plots
 9. SUMMARIZE findings in plain English including SHAP explanations
 
 ## Rules:
 - Always wrap code in ```python ... ``` blocks
 - Generate ALL charts in SEPARATE code blocks BEFORE writing FINAL ANSWER
-- Use Plotly for ALL charts — never use matplotlib or seaborn for final charts
-- Save every Plotly chart with: chart_json = plotly.io.to_json(fig); open('chart.plotly', 'w').write(chart_json)
-- Never use fig.show() or plt.show()
+- Always save every chart with plt.savefig('chart.png', bbox_inches='tight'); plt.close()
+- Never use plt.show()
+- Never mention chart filenames in text — always generate them in actual code blocks
 - Encode categorical variables before modeling
 - Always print evaluation metrics clearly
 - The FINAL ANSWER section should contain only plain text summary, no code blocks
@@ -86,9 +76,6 @@ def get_ml_tools(df):
     return {
         "pd": pd, "plt": plt, "sns": sns, "os": os, "np": np,
         "df": df,
-        "plotly": plotly,
-        "px": px,
-        "go": go,
         "shap": shap,
         "LogisticRegression": LogisticRegression,
         "LinearRegression": LinearRegression,
@@ -111,15 +98,13 @@ def get_ml_tools(df):
     }
 
 
-def run_python(code: str, df) -> tuple[str, list[str], list[str]]:
+def run_python(code: str, df) -> tuple[str, list[str]]:
     """
-    Executes Python code and returns (text_output, png_charts, plotly_charts).
-    PNG charts are base64 encoded, Plotly charts are JSON strings.
+    Executes Python code and returns (text_output, list_of_base64_charts).
     """
     old_stdout = sys.stdout
     sys.stdout = buffer = io.StringIO()
-    png_charts = []
-    plotly_charts = []
+    charts = []
 
     try:
         exec(code, get_ml_tools(df))
@@ -138,19 +123,14 @@ def run_python(code: str, df) -> tuple[str, list[str], list[str]]:
         sys.stdout = old_stdout
 
     # Capture PNG charts
-    for fname in [f for f in os.listdir('.') if f.endswith('.png')]:
+    saved_charts = [f for f in os.listdir('.') if f.endswith('.png')]
+    for fname in saved_charts:
         with open(fname, 'rb') as f:
             encoded = base64.b64encode(f.read()).decode('utf-8')
-            png_charts.append(encoded)
+            charts.append(encoded)
         os.remove(fname)
 
-    # Capture Plotly charts
-    for fname in [f for f in os.listdir('.') if f.endswith('.plotly')]:
-        with open(fname, 'r') as f:
-            plotly_charts.append(f.read())
-        os.remove(fname)
-
-    return output if output else "Code ran successfully.", png_charts, plotly_charts
+    return output if output else "Code ran successfully.", charts
 
 
 def get_dataset_summary(df):
@@ -331,9 +311,7 @@ Please provide:
 3. **KPIs to Track** — How to measure success for each initiative
 4. **Quick Wins** — 1-2 things that could be implemented immediately with low effort and high impact
 5. **6 Month Roadmap** — A suggested timeline for implementing the initiatives in order
-6. **What-If Scenarios** — 2-3 financial impact estimates such as:
-   - "If we retained X% more at-risk customers, estimated additional revenue would be $X"
-   - Use realistic estimates based on the data findings.
+6. **What-If Scenarios** — 2-3 financial impact estimates.
    Label this section clearly as **What-If Scenarios**.
 
 Write this for a business leader, not a data scientist.
@@ -379,8 +357,6 @@ BUSINESS RECOMMENDATIONS:
 Your job is to answer follow-up questions about this analysis.
 Be specific, reference the actual findings, and give actionable answers.
 Keep responses concise and clear — the user is likely a business leader.
-If asked to summarize for a specific audience, adjust your language accordingly.
-If asked a what-if question, reason through it based on the data findings.
 """
 
     messages = [user_msg(system_context)]
@@ -418,8 +394,7 @@ Start by reasoning about what steps to take, then write Python code to begin.
 """
 
     messages = [user_msg(dataset_context)]
-    all_png_charts = []
-    all_plotly_charts = []
+    all_charts = []
     final_summary = ""
 
     for turn in range(max_turns):
@@ -445,17 +420,15 @@ Start by reasoning about what steps to take, then write Python code to begin.
             code_blocks = reply.split("```python")[1:]
             for block in code_blocks:
                 code = block.split("```")[0].strip()
-                _, png_charts, plotly_charts = run_python(code, df)
-                all_png_charts.extend(png_charts)
-                all_plotly_charts.extend(plotly_charts)
+                _, charts = run_python(code, df)
+                all_charts.extend(charts)
             final_summary = reply.split("FINAL ANSWER:")[-1].strip()
             break
 
         if "```python" in reply:
             code_block = reply.split("```python")[1].split("```")[0].strip()
-            output, png_charts, plotly_charts = run_python(code_block, df)
-            all_png_charts.extend(png_charts)
-            all_plotly_charts.extend(plotly_charts)
+            output, charts = run_python(code_block, df)
+            all_charts.extend(charts)
             messages.append(user_msg(f"Code output:\n{output}\n\nContinue your analysis."))
         else:
             messages.append(user_msg("Continue your analysis."))
@@ -470,8 +443,8 @@ Start by reasoning about what steps to take, then write Python code to begin.
 
     return {
         "summary": final_summary,
-        "charts": all_png_charts,
-        "plotly_charts": all_plotly_charts,
+        "charts": all_charts,
+        "plotly_charts": [],
         "turns": len(messages),
         "recommendations": recommendations,
         "quality_report": quality_report,
