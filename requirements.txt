@@ -10,3 +10,5 @@ numpy
 shap
 plotly
 kaleido
+xgboost
+lightgbm
