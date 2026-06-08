@@ -109,7 +109,6 @@ def run_python(code: str, df) -> tuple[str, list[str]]:
     try:
         exec(code, get_ml_tools(df))
 
-        # Force-save any still-open matplotlib figures
         for i, fig in enumerate(map(plt.figure, plt.get_fignums())):
             fig.savefig(f'chart_{i}.png', bbox_inches='tight')
             plt.close(fig)
@@ -122,7 +121,6 @@ def run_python(code: str, df) -> tuple[str, list[str]]:
     finally:
         sys.stdout = old_stdout
 
-    # Capture PNG charts
     saved_charts = [f for f in os.listdir('.') if f.endswith('.png')]
     for fname in saved_charts:
         with open(fname, 'rb') as f:
@@ -290,7 +288,7 @@ def get_business_recommendations(summary: str, api_key: str) -> str:
     """Generates actionable business recommendations from the analysis summary."""
     client = genai.Client(api_key=api_key)
 
-prompt = f"""
+    prompt = f"""
 You are a senior business strategy consultant reviewing a data analysis report.
 
 Based on the following data analysis findings, generate a structured set of
@@ -347,6 +345,8 @@ Use realistic estimates based on the actual data findings.
     )
 
     return response.text
+
+
 def user_msg(text):
     return types.Content(role="user", parts=[types.Part(text=text)])
 
