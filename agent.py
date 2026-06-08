@@ -290,7 +290,7 @@ def get_business_recommendations(summary: str, api_key: str) -> str:
     """Generates actionable business recommendations from the analysis summary."""
     client = genai.Client(api_key=api_key)
 
-    prompt = f"""
+prompt = f"""
 You are a senior business strategy consultant reviewing a data analysis report.
 
 Based on the following data analysis findings, generate a structured set of
@@ -299,8 +299,10 @@ business recommendations for a non-technical business leader.
 ANALYSIS FINDINGS:
 {summary}
 
-Please provide:
+Please provide ALL of the following sections:
+
 1. **Key Findings** — The 3-5 most important insights from the data in plain English
+
 2. **Recommended Initiatives** — Ranked from highest to lowest priority, each with:
    - Rank (1 being most important)
    - What to do
@@ -308,14 +310,35 @@ Please provide:
    - Expected impact
    - Effort required (Low/Medium/High)
    - Priority score (High/Medium/Low)
-3. **KPIs to Track** — How to measure success for each initiative
-4. **Quick Wins** — 1-2 things that could be implemented immediately with low effort and high impact
-5. **6 Month Roadmap** — A suggested timeline for implementing the initiatives in order
-6. **What-If Scenarios** — 2-3 financial impact estimates.
+
+3. **Initiative ROI Scorecard** — For each initiative provide a table with:
+   - Initiative name
+   - Estimated implementation cost (e.g. $10,000 - $50,000)
+   - Estimated annual revenue impact or cost savings
+   - ROI percentage (revenue impact / cost * 100)
+   - Estimated payback period (e.g. 2 months, 6 months)
+   Label this section clearly as **Initiative ROI Scorecard**
+   Format as a markdown table with columns: Initiative | Est. Cost | Revenue Impact | ROI | Payback Period
+
+4. **KPIs to Track** — How to measure success for each initiative
+
+5. **Quick Wins** — 1-2 things that could be implemented immediately with low effort and high impact
+
+6. **6 Month Roadmap** — A suggested timeline for implementing the initiatives in order
+
+7. **What-If Scenarios** — 2-3 financial impact estimates.
    Label this section clearly as **What-If Scenarios**.
+
+8. **Executive Summary** — A concise summary for C-suite leadership containing:
+   - One sentence describing the single biggest opportunity
+   - Exactly 3 bullet points of key findings in plain English
+   - The total financial opportunity in one bold number (e.g. **$1.2M annual opportunity**)
+   - The single most important action to take right now
+   Label this section clearly as **Executive Summary** and put it at the END.
 
 Write this for a business leader, not a data scientist.
 Avoid technical jargon. Focus on business impact and actionable steps.
+Use realistic estimates based on the actual data findings.
 """
 
     response = client.models.generate_content(
@@ -324,8 +347,6 @@ Avoid technical jargon. Focus on business impact and actionable steps.
     )
 
     return response.text
-
-
 def user_msg(text):
     return types.Content(role="user", parts=[types.Part(text=text)])
 
