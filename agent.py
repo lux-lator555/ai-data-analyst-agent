@@ -24,6 +24,15 @@ from sklearn.metrics import (
     mean_squared_error, mean_absolute_error, r2_score
 )
 from sklearn.preprocessing import LabelEncoder, StandardScaler
+from sklearn.preprocessing import LabelEncoder, StandardScaler
+from xgboost import XGBClassifier, XGBRegressor
+from lightgbm import LGBMClassifier, LGBMRegressor
+from sklearn.ensemble import GradientBoostingClassifier, GradientBoostingRegressor
+from sklearn.svm import SVC, SVR
+from sklearn.linear_model import Ridge, Lasso
+from sklearn.ensemble import IsolationForest
+from sklearn.cluster import DBSCAN
+import shap
 import shap
 
 SYSTEM_INSTRUCTION = """
@@ -33,11 +42,15 @@ You are given a dataset and a goal. You reason step by step like a senior data s
 ## Your workflow:
 1. INSPECT the data — column types, nulls, distributions, target variable
 2. IDENTIFY the problem type based on the target variable:
-   - Binary column (0/1, yes/no) → Logistic Regression + Random Forest (classification)
-   - Continuous numeric column → Linear Regression (regression)
-   - Categorical column with 3+ classes → Random Forest (multiclass classification)
-   - No clear target → K-Means Clustering (unsupervised)
-3. SELECT the best model and explain why
+   - Binary column (0/1, yes/no) → Try Logistic Regression, Random Forest, XGBoost, LightGBM
+   - Continuous numeric column → Try Linear Regression, Ridge, Lasso, XGBoost Regressor
+   - Categorical column with 3+ classes → Try Random Forest, XGBoost, LightGBM
+   - No clear target → K-Means Clustering or DBSCAN
+   - Anomaly detection task → Isolation Forest
+3. SELECT the best 2-3 models for the problem and explain why
+   - For large datasets (>5000 rows): prefer LightGBM or XGBoost (faster)
+   - For small datasets (<1000 rows): consider SVM or Logistic Regression
+   - Always compare at least 2 models
 4. CONSIDER hyperparameters — don't just use defaults, reason about:
    - For Logistic Regression: C (regularization strength), max_iter, solver
    - For Random Forest: n_estimators, max_depth, min_samples_split
@@ -95,6 +108,18 @@ def get_ml_tools(df):
         "r2_score": r2_score,
         "LabelEncoder": LabelEncoder,
         "StandardScaler": StandardScaler,
+        "XGBClassifier": XGBClassifier,
+        "XGBRegressor": XGBRegressor,
+        "LGBMClassifier": LGBMClassifier,
+        "LGBMRegressor": LGBMRegressor,
+        "GradientBoostingClassifier": GradientBoostingClassifier,
+        "GradientBoostingRegressor": GradientBoostingRegressor,
+        "SVC": SVC,
+        "SVR": SVR,
+        "Ridge": Ridge,
+        "Lasso": Lasso,
+        "IsolationForest": IsolationForest,
+        "DBSCAN": DBSCAN,
     }
 
 
