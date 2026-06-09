@@ -82,12 +82,14 @@ An autonomous AI-powered data analysis platform that transforms any CSV dataset 
 
 | Use Case | Problem Type | Models |
 |----------|-------------|--------|
-| Customer churn prediction | Binary classification | Logistic Regression, Random Forest |
-| Shipment delay prediction | Binary classification | Logistic Regression, Random Forest |
-| Next product recommendation | Multiclass classification | Random Forest |
-| Employee salary prediction | Regression | Linear Regression |
-| Customer segmentation | Clustering | K-Means |
-| Any binary yes/no outcome | Classification | Logistic Regression, Random Forest |
+| Customer churn prediction | Binary classification | Logistic Regression, Random Forest, XGBoost, LightGBM |
+| Shipment delay prediction | Binary classification | Logistic Regression, Random Forest, XGBoost, LightGBM |
+| Next product recommendation | Multiclass classification | Random Forest, XGBoost, LightGBM |
+| Employee salary prediction | Regression | Linear Regression, Ridge, Lasso |
+| Customer segmentation | Clustering | K-Means, DBSCAN |
+| Fraud / anomaly detection | Anomaly detection | Isolation Forest, DBSCAN |
+| Sales / revenue trends | Time series | Trend analysis, forecasting |
+| Any binary yes/no outcome | Classification | Logistic Regression, Random Forest, XGBoost |
 
 ---
 
@@ -114,25 +116,32 @@ This differs from traditional ML pipelines because the agent **decides** what to
 
 ## 🗺️ Roadmap
 
+## 🗺️ Roadmap
+
 - [x] Autonomous agent loop
 - [x] CSV upload with auto-detection
 - [x] ML model selection and hyperparameter reasoning
+- [x] Cross-validation for small datasets (< 1000 rows)
 - [x] SHAP explainability
 - [x] Data quality report
 - [x] Confidence scoring
 - [x] Chart generation
 - [x] Model comparison table
 - [x] Business recommendations with ranked initiatives
+- [x] Initiative ROI Scorecard
 - [x] What-if financial scenarios
 - [x] 6 month roadmap generation
+- [x] Executive Summary with copy for presentation
 - [x] Follow-up chat interface
 - [x] PDF export
 - [x] Analysis history
 - [x] Email authentication
+- [x] Anomaly detection (Isolation Forest + DBSCAN)
+- [x] Trend analysis with forecasting and visualizations
+- [x] XGBoost, LightGBM, SVM, Ridge, Lasso support
 - [ ] Interactive Plotly charts
 - [ ] Google Sheets connector
-- [ ] Cross-validation for small datasets
-- [ ] Persistent analysis history across sessions
+- [ ] Persistent history across sessions
 - [ ] User accounts
 
 ---
