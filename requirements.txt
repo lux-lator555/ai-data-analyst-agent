@@ -12,3 +12,4 @@ plotly
 kaleido
 xgboost
 lightgbm
+statsmodels

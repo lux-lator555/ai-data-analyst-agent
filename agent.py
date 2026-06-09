@@ -35,6 +35,7 @@ from sklearn.cluster import DBSCAN
 import shap
 import shap
 from sklearn.model_selection import cross_val_score, StratifiedKFold, KFold
+from statsmodels.tsa.holtwinters import ExponentialSmoothing
 
 SYSTEM_INSTRUCTION = """
 You are an expert data scientist agent.
@@ -52,6 +53,13 @@ You are given a dataset and a goal. You reason step by step like a senior data s
      * Flag top anomalies and print their index and key feature values
      * Generate a scatter plot highlighting anomalies in red
      * Explain what makes each anomaly unusual in plain English
+   - Dataset has a date/time column → Also run trend analysis:
+     * Parse the date column and sort by date
+     * Calculate month-over-month or period-over-period growth rates
+     * Identify seasonality patterns (peaks and troughs)
+     * Determine overall trend direction (upward, downward, cyclical, flat)
+     * Forecast the next 3 periods using linear extrapolation or rolling average
+     * Generate trend visualizations with matplotlib
 3. SELECT the best 2-3 models for the problem and explain why
    - For large datasets (>5000 rows): prefer LightGBM or XGBoost (faster)
    - For small datasets (<1000 rows): consider SVM or Logistic Regression
@@ -93,6 +101,9 @@ You are given a dataset and a goal. You reason step by step like a senior data s
 - Always print evaluation metrics clearly
 - For anomaly detection: always print how many anomalies were found and what % of the dataset they represent
 - For anomaly detection: always explain the top 3 anomalies in plain English
+- For trend analysis: always generate at least 2 charts — a time series line chart and a growth rate bar chart
+- For trend analysis: always state the trend direction clearly and what it means for the business
+- For trend analysis: always save charts with plt.savefig('chart.png', bbox_inches='tight'); plt.close()
 - The FINAL ANSWER section should contain only plain text summary, no code blocks
 - When done, start your final message with: FINAL ANSWER:
 """
