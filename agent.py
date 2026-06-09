@@ -34,6 +34,7 @@ from sklearn.ensemble import IsolationForest
 from sklearn.cluster import DBSCAN
 import shap
 import shap
+from sklearn.model_selection import cross_val_score, StratifiedKFold, KFold
 
 SYSTEM_INSTRUCTION = """
 You are an expert data scientist agent.
@@ -56,7 +57,14 @@ You are given a dataset and a goal. You reason step by step like a senior data s
    - For Random Forest: n_estimators, max_depth, min_samples_split
    - For Linear Regression: whether to normalize, handle outliers
    - For K-Means: n_clusters (use elbow method)
-5. TRAIN the model using an 80/20 train/test split
+5. TRAIN the model using the appropriate validation strategy:
+   - If dataset has LESS than 1000 rows: use 5-fold cross-validation
+     * Use cross_val_score for each metric (accuracy, precision, recall, F1)
+     * Report mean ± standard deviation for each metric (e.g. "Accuracy: 0.85 ± 0.03")
+     * A low std (< 0.05) means stable model, high std (> 0.10) means unstable/overfit
+     * Also do a final fit on full training data for SHAP analysis
+   - If dataset has MORE than 1000 rows: use 80/20 train/test split as normal
+   - Always print which validation strategy was used and why
 6. EVALUATE using the right metrics:
    - Classification → accuracy, precision, recall, F1, confusion matrix
    - Regression → RMSE, MAE, R² score
@@ -120,6 +128,9 @@ def get_ml_tools(df):
         "Lasso": Lasso,
         "IsolationForest": IsolationForest,
         "DBSCAN": DBSCAN,
+        "cross_val_score": cross_val_score,
+        "StratifiedKFold": StratifiedKFold,
+        "KFold": KFold,
     }
 
 
