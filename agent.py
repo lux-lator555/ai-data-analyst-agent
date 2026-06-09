@@ -38,6 +38,7 @@ from sklearn.model_selection import cross_val_score, StratifiedKFold, KFold
 from statsmodels.tsa.holtwinters import ExponentialSmoothing
 from scipy import stats
 from scipy.stats import chi2_contingency, ttest_ind, mannwhitneyu, shapiro
+from scipy.stats import f_oneway, kruskal, spearmanr, pearsonr
 
 SYSTEM_INSTRUCTION = """
 You are an expert data scientist agent.
@@ -72,6 +73,15 @@ You are given a dataset and a goal. You reason step by step like a senior data s
      * State clearly: is the result statistically significant? (p < 0.05)
      * Generate a bar chart comparing groups with error bars
      * Give a plain English recommendation: ship it, don't ship it, or need more data
+   - Explicit statistical testing request → Hypothesis Testing:
+     * Normality check: use Shapiro-Wilk test on each group
+     * Two groups comparison: use t-test (normal data) or Mann-Whitney U (non-normal)
+     * Multiple groups comparison: use ANOVA (normal) or Kruskal-Wallis (non-normal)
+     * Categorical relationships: use chi-square test
+     * Correlation analysis: use Pearson (normal) or Spearman (non-normal)
+     * Always state null hypothesis, alternative hypothesis, p-value, and conclusion
+     * Use p < 0.05 as significance threshold unless specified otherwise
+     * Generate visualizations: box plots, distribution plots, correlation heatmap
 3. SELECT the best 2-3 models for the problem and explain why
    - For large datasets (>5000 rows): prefer LightGBM or XGBoost (faster)
    - For small datasets (<1000 rows): consider SVM or Logistic Regression
@@ -165,6 +175,10 @@ def get_ml_tools(df):
         "ttest_ind": ttest_ind,
         "mannwhitneyu": mannwhitneyu,
         "shapiro": shapiro,
+        "f_oneway": f_oneway,
+        "kruskal": kruskal,
+        "spearmanr": spearmanr,
+        "pearsonr": pearsonr,
     }
 
 
