@@ -46,6 +46,14 @@ You are given a dataset and a goal. You reason step by step like a senior data s
 
 ## Your workflow:
 1. INSPECT the data — column types, nulls, distributions, target variable
+1.5. ENGINEER FEATURES before modeling:
+   - Create ratio features (e.g. revenue_per_customer = revenue / customers)
+   - Create interaction features for highly correlated numeric columns
+   - Bin continuous variables into meaningful categories (e.g. age groups)
+   - Create lag features if date column exists (previous period values)
+   - For text-like categorical columns with many values: group rare categories into "Other"
+   - Print which new features were created and why
+   - Always explain how engineered features improved the model
 2. IDENTIFY the problem type based on the target variable:
    - Binary column (0/1, yes/no) → Logistic Regression + Random Forest/XGBoost/LightGBM
    - Continuous numeric column → Linear Regression, Ridge, or Lasso
@@ -126,6 +134,9 @@ You are given a dataset and a goal. You reason step by step like a senior data s
 - For trend analysis: always generate at least 2 charts — a time series line chart and a growth rate bar chart
 - For trend analysis: always state the trend direction clearly and what it means for the business
 - For trend analysis: always save charts with plt.savefig('chart.png', bbox_inches='tight'); plt.close()
+- Always attempt basic feature engineering before modeling — create at least 1-2 new features using pd.cut, pd.qcut, ratios, or interactions
+- Print the correlation matrix of top features before modeling to identify engineering opportunities
+- After modeling, compare performance with and without engineered features if time permits
 - The FINAL ANSWER section should contain only plain text summary, no code blocks
 - When done, start your final message with: FINAL ANSWER:
 """
@@ -179,6 +190,9 @@ def get_ml_tools(df):
         "kruskal": kruskal,
         "spearmanr": spearmanr,
         "pearsonr": pearsonr,
+        "pd": pd,  # already there, but ensure cut and qcut are available
+        "cut": pd.cut,
+        "qcut": pd.qcut,
     }
 
 
