@@ -36,6 +36,8 @@ import shap
 import shap
 from sklearn.model_selection import cross_val_score, StratifiedKFold, KFold
 from statsmodels.tsa.holtwinters import ExponentialSmoothing
+from scipy import stats
+from scipy.stats import chi2_contingency, ttest_ind, mannwhitneyu, shapiro
 
 SYSTEM_INSTRUCTION = """
 You are an expert data scientist agent.
@@ -60,6 +62,16 @@ You are given a dataset and a goal. You reason step by step like a senior data s
      * Determine overall trend direction (upward, downward, cyclical, flat)
      * Forecast the next 3 periods using linear extrapolation or rolling average
      * Generate trend visualizations with matplotlib
+   - Dataset has two groups/variants (A/B, control/treatment, before/after) → A/B Test Analysis:
+     * Identify the control and treatment groups
+     * For conversion metrics (binary): use chi-square test
+     * For continuous metrics (revenue, time): use t-test or Mann-Whitney U test
+     * Calculate statistical significance (p-value) and confidence intervals
+     * Calculate relative uplift (% improvement of treatment over control)
+     * Determine minimum sample size needed for reliable results
+     * State clearly: is the result statistically significant? (p < 0.05)
+     * Generate a bar chart comparing groups with error bars
+     * Give a plain English recommendation: ship it, don't ship it, or need more data
 3. SELECT the best 2-3 models for the problem and explain why
    - For large datasets (>5000 rows): prefer LightGBM or XGBoost (faster)
    - For small datasets (<1000 rows): consider SVM or Logistic Regression
@@ -148,6 +160,11 @@ def get_ml_tools(df):
         "cross_val_score": cross_val_score,
         "StratifiedKFold": StratifiedKFold,
         "KFold": KFold,
+        "stats": stats,
+        "chi2_contingency": chi2_contingency,
+        "ttest_ind": ttest_ind,
+        "mannwhitneyu": mannwhitneyu,
+        "shapiro": shapiro,
     }
 
 

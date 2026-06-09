@@ -13,3 +13,4 @@ kaleido
 xgboost
 lightgbm
 statsmodels
+scipy
