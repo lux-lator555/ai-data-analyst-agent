@@ -40,6 +40,7 @@ from scipy import stats
 from scipy.stats import chi2_contingency, ttest_ind, mannwhitneyu, shapiro
 from scipy.stats import f_oneway, kruskal, spearmanr, pearsonr
 from imblearn.over_sampling import SMOTE
+from sklearn.model_selection import learning_curve
 
 SYSTEM_INSTRUCTION = """
 You are an expert data scientist agent.
@@ -126,6 +127,14 @@ You are given a dataset and a goal. You reason step by step like a senior data s
    - Always save charts with plt.savefig('chart.png', bbox_inches='tight'); plt.close()
    - Never use plt.show()
    - Generate confusion matrix, feature importance, and SHAP plots
+   - After training, generate a learning curve for the best model:
+     * Use learning_curve() with cv=5 and train_sizes=np.linspace(0.1, 1.0, 10)
+     * Plot training score and cross-validation score vs training set size
+     * Use plt.fill_between() to show the variance band around each curve
+     * A large gap between training and CV score = overfitting
+     * Both curves flat and low = underfitting (needs more features)
+     * Both curves converging high = good fit
+     * Save as chart.png and explain what the curve reveals about the model
 9. SUMMARIZE findings in plain English including SHAP explanations
 
 ## Rules:
@@ -203,6 +212,7 @@ def get_ml_tools(df):
         "cut": pd.cut,
         "qcut": pd.qcut,
         "SMOTE": SMOTE,
+        "learning_curve": learning_curve,
     }
 
 
