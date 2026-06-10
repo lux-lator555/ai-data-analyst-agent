@@ -125,6 +125,8 @@ You are given a dataset and a goal. You reason step by step like a senior data s
 - Always wrap code in ```python ... ``` blocks
 - Generate ALL charts in SEPARATE code blocks BEFORE writing FINAL ANSWER
 - Always save every chart with plt.savefig('chart.png', bbox_inches='tight'); plt.close()
+- Always set figure background: plt.figure(figsize=(10, 6), facecolor='#1e293b')
+- Always set axes background: ax.set_facecolor('#0f172a') or plt.gca().set_facecolor('#0f172a')
 - Never use plt.show()
 - Never mention chart filenames in text — always generate them in actual code blocks
 - Encode categorical variables before modeling
@@ -205,10 +207,19 @@ def run_python(code: str, df) -> tuple[str, list[str]]:
     charts = []
 
     try:
+        # Set dark background for all charts
+        plt.style.use('dark_background')
+        plt.rcParams['figure.facecolor'] = '#1e293b'
+        plt.rcParams['axes.facecolor'] = '#0f172a'
+        plt.rcParams['savefig.facecolor'] = '#1e293b'
+        plt.rcParams['savefig.edgecolor'] = 'none'
+
         exec(code, get_ml_tools(df))
 
+        # Force-save any still-open matplotlib figures
         for i, fig in enumerate(map(plt.figure, plt.get_fignums())):
-            fig.savefig(f'chart_{i}.png', bbox_inches='tight')
+            fig.savefig(f'chart_{i}.png', bbox_inches='tight',
+                       facecolor='#1e293b', edgecolor='none')
             plt.close(fig)
 
         output = buffer.getvalue()
@@ -218,6 +229,7 @@ def run_python(code: str, df) -> tuple[str, list[str]]:
 
     finally:
         sys.stdout = old_stdout
+        plt.rcParams.update(plt.rcParamsDefault)
 
     saved_charts = [f for f in os.listdir('.') if f.endswith('.png')]
     for fname in saved_charts:
