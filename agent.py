@@ -39,6 +39,7 @@ from statsmodels.tsa.holtwinters import ExponentialSmoothing
 from scipy import stats
 from scipy.stats import chi2_contingency, ttest_ind, mannwhitneyu, shapiro
 from scipy.stats import f_oneway, kruskal, spearmanr, pearsonr
+from imblearn.over_sampling import SMOTE
 
 SYSTEM_INSTRUCTION = """
 You are an expert data scientist agent.
@@ -102,11 +103,17 @@ You are given a dataset and a goal. You reason step by step like a senior data s
 5. TRAIN the model using the appropriate validation strategy:
    - If dataset has LESS than 1000 rows: use 5-fold cross-validation
      * Use cross_val_score for each metric (accuracy, precision, recall, F1)
-     * Report mean ± standard deviation for each metric (e.g. "Accuracy: 0.85 ± 0.03")
+     * Report mean ± standard deviation for each metric
      * A low std (< 0.05) means stable model, high std (> 0.10) means unstable/overfit
      * Also do a final fit on full training data for SHAP analysis
    - If dataset has MORE than 1000 rows: use 80/20 train/test split as normal
    - Always print which validation strategy was used and why
+   - CHECK FOR CLASS IMBALANCE before training:
+     * Calculate the ratio of majority to minority class
+     * If imbalance ratio > 2:1, apply SMOTE to the training data only
+     * Print class distribution before and after SMOTE
+     * Never apply SMOTE to test data
+     * Report whether SMOTE was applied and how it affected class distribution
 6. EVALUATE using the right metrics:
    - Classification → accuracy, precision, recall, F1, confusion matrix
    - Regression → RMSE, MAE, R² score
@@ -195,6 +202,7 @@ def get_ml_tools(df):
         "pd": pd,  # already there, but ensure cut and qcut are available
         "cut": pd.cut,
         "qcut": pd.qcut,
+        "SMOTE": SMOTE,
     }
 
 
