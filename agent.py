@@ -41,6 +41,7 @@ from scipy.stats import chi2_contingency, ttest_ind, mannwhitneyu, shapiro
 from scipy.stats import f_oneway, kruskal, spearmanr, pearsonr
 from imblearn.over_sampling import SMOTE
 from sklearn.model_selection import learning_curve
+from sklearn.feature_selection import RFE, SelectKBest, f_classif, f_regression
 
 SYSTEM_INSTRUCTION = """
 You are an expert data scientist agent.
@@ -56,6 +57,12 @@ You are given a dataset and a goal. You reason step by step like a senior data s
    - For text-like categorical columns with many values: group rare categories into "Other"
    - Print which new features were created and why
    - Always explain how engineered features improved the model
+   - After feature engineering, run RFE (Recursive Feature Elimination):
+     * Use RFE with the primary model and n_features_to_select=10 (or all if fewer than 10)
+     * Print which features were selected and which were eliminated
+     * Print the ranking of eliminated features (1 = most important)
+     * Use only the selected features for final model training
+     * Compare model performance with all features vs RFE-selected features
 2. IDENTIFY the problem type based on the target variable:
    - Binary column (0/1, yes/no) → Logistic Regression + Random Forest/XGBoost/LightGBM
    - Continuous numeric column → Linear Regression, Ridge, or Lasso
@@ -213,6 +220,10 @@ def get_ml_tools(df):
         "qcut": pd.qcut,
         "SMOTE": SMOTE,
         "learning_curve": learning_curve,
+        "RFE": RFE,
+        "SelectKBest": SelectKBest,
+        "f_classif": f_classif,
+        "f_regression": f_regression,
     }
 
 
