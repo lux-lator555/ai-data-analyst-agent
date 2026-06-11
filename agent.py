@@ -39,7 +39,12 @@ from statsmodels.tsa.holtwinters import ExponentialSmoothing
 from scipy import stats
 from scipy.stats import chi2_contingency, ttest_ind, mannwhitneyu, shapiro
 from scipy.stats import f_oneway, kruskal, spearmanr, pearsonr
-from imblearn.over_sampling import SMOTE
+try:
+    from imblearn.over_sampling import SMOTE
+    SMOTE_AVAILABLE = True
+except ImportError:
+    SMOTE_AVAILABLE = False
+    SMOTE = None
 from sklearn.model_selection import learning_curve
 from sklearn.feature_selection import RFE, SelectKBest, f_classif, f_regression
 
@@ -116,12 +121,13 @@ You are given a dataset and a goal. You reason step by step like a senior data s
      * Also do a final fit on full training data for SHAP analysis
    - If dataset has MORE than 1000 rows: use 80/20 train/test split as normal
    - Always print which validation strategy was used and why
-   - CHECK FOR CLASS IMBALANCE before training:
+- CHECK FOR CLASS IMBALANCE before training:
      * Calculate the ratio of majority to minority class
-     * If imbalance ratio > 2:1, apply SMOTE to the training data only
-     * Print class distribution before and after SMOTE
+     * If imbalance ratio > 2:1 AND SMOTE_AVAILABLE is True, apply SMOTE to training data only
+     * If SMOTE_AVAILABLE is False, use class_weight='balanced' parameter instead
+     * Print class distribution before and after balancing
      * Never apply SMOTE to test data
-     * Report whether SMOTE was applied and how it affected class distribution
+     * Report whether SMOTE or class_weight='balanced' was used and why
 6. EVALUATE using the right metrics:
    - Classification → accuracy, precision, recall, F1, confusion matrix
    - Regression → RMSE, MAE, R² score
@@ -219,6 +225,7 @@ def get_ml_tools(df):
         "cut": pd.cut,
         "qcut": pd.qcut,
         "SMOTE": SMOTE,
+        "SMOTE_AVAILABLE": SMOTE_AVAILABLE,
         "learning_curve": learning_curve,
         "RFE": RFE,
         "SelectKBest": SelectKBest,
