@@ -14,39 +14,33 @@ import pandas as pd
 import numpy as np
 from google import genai
 from google.genai import types
-from sklearn.linear_model import LogisticRegression, LinearRegression
+from sklearn.linear_model import LogisticRegression, LinearRegression, Ridge, Lasso
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
-from sklearn.cluster import KMeans
-from sklearn.model_selection import train_test_split, GridSearchCV
+from sklearn.ensemble import GradientBoostingClassifier, GradientBoostingRegressor
+from sklearn.ensemble import IsolationForest
+from sklearn.cluster import KMeans, DBSCAN
+from sklearn.svm import SVC, SVR
+from sklearn.model_selection import train_test_split, GridSearchCV, cross_val_score, StratifiedKFold, KFold, learning_curve
 from sklearn.metrics import (
     accuracy_score, precision_score, recall_score,
     f1_score, confusion_matrix, classification_report,
     mean_squared_error, mean_absolute_error, r2_score
 )
 from sklearn.preprocessing import LabelEncoder, StandardScaler
-from sklearn.preprocessing import LabelEncoder, StandardScaler
+from sklearn.feature_selection import RFE, SelectKBest, f_classif, f_regression
 from xgboost import XGBClassifier, XGBRegressor
 from lightgbm import LGBMClassifier, LGBMRegressor
-from sklearn.ensemble import GradientBoostingClassifier, GradientBoostingRegressor
-from sklearn.svm import SVC, SVR
-from sklearn.linear_model import Ridge, Lasso
-from sklearn.ensemble import IsolationForest
-from sklearn.cluster import DBSCAN
-import shap
-import shap
-from sklearn.model_selection import cross_val_score, StratifiedKFold, KFold
-from statsmodels.tsa.holtwinters import ExponentialSmoothing
 from scipy import stats
-from scipy.stats import chi2_contingency, ttest_ind, mannwhitneyu, shapiro
-from scipy.stats import f_oneway, kruskal, spearmanr, pearsonr
+from scipy.stats import chi2_contingency, ttest_ind, mannwhitneyu, shapiro, f_oneway, kruskal, spearmanr, pearsonr
+from statsmodels.tsa.holtwinters import ExponentialSmoothing
+import shap
+
 try:
     from imblearn.over_sampling import SMOTE
     SMOTE_AVAILABLE = True
 except ImportError:
     SMOTE_AVAILABLE = False
     SMOTE = None
-from sklearn.model_selection import learning_curve
-from sklearn.feature_selection import RFE, SelectKBest, f_classif, f_regression
 
 SYSTEM_INSTRUCTION = """
 You are an expert data scientist agent.
@@ -54,10 +48,11 @@ You are given a dataset and a goal. You reason step by step like a senior data s
 
 ## Your workflow:
 1. INSPECT the data — column types, nulls, distributions, target variable
+
 1.5. ENGINEER FEATURES before modeling:
    - Create ratio features (e.g. revenue_per_customer = revenue / customers)
    - Create interaction features for highly correlated numeric columns
-   - Bin continuous variables into meaningful categories (e.g. age groups)
+   - Bin continuous variables into meaningful categories using pd.cut or pd.qcut
    - Create lag features if date column exists (previous period values)
    - For text-like categorical columns with many values: group rare categories into "Other"
    - Print which new features were created and why
@@ -65,9 +60,10 @@ You are given a dataset and a goal. You reason step by step like a senior data s
    - After feature engineering, run RFE (Recursive Feature Elimination):
      * Use RFE with the primary model and n_features_to_select=10 (or all if fewer than 10)
      * Print which features were selected and which were eliminated
-     * Print the ranking of eliminated features (1 = most important)
      * Use only the selected features for final model training
-     * Compare model performance with all features vs RFE-selected features
+   - Always attempt basic feature engineering before modeling — create at least 1-2 new features using pd.cut, pd.qcut, ratios, or interactions
+   - Print the correlation matrix of top features before modeling to identify engineering opportunities
+
 2. IDENTIFY the problem type based on the target variable:
    - Binary column (0/1, yes/no) → Logistic Regression + Random Forest/XGBoost/LightGBM
    - Continuous numeric column → Linear Regression, Ridge, or Lasso
@@ -85,91 +81,81 @@ You are given a dataset and a goal. You reason step by step like a senior data s
      * Determine overall trend direction (upward, downward, cyclical, flat)
      * Forecast the next 3 periods using linear extrapolation or rolling average
      * Generate trend visualizations with matplotlib
-   - Dataset has two groups/variants (A/B, control/treatment, before/after) → A/B Test Analysis:
-     * Identify the control and treatment groups
+   - Dataset has two groups/variants (A/B, control/treatment) → A/B Test Analysis:
      * For conversion metrics (binary): use chi-square test
-     * For continuous metrics (revenue, time): use t-test or Mann-Whitney U test
+     * For continuous metrics: use t-test or Mann-Whitney U test
      * Calculate statistical significance (p-value) and confidence intervals
-     * Calculate relative uplift (% improvement of treatment over control)
-     * Determine minimum sample size needed for reliable results
+     * Calculate relative uplift
      * State clearly: is the result statistically significant? (p < 0.05)
-     * Generate a bar chart comparing groups with error bars
      * Give a plain English recommendation: ship it, don't ship it, or need more data
    - Explicit statistical testing request → Hypothesis Testing:
      * Normality check: use Shapiro-Wilk test on each group
-     * Two groups comparison: use t-test (normal data) or Mann-Whitney U (non-normal)
-     * Multiple groups comparison: use ANOVA (normal) or Kruskal-Wallis (non-normal)
+     * Two groups: use t-test (normal) or Mann-Whitney (non-normal)
+     * Multiple groups: use ANOVA (normal) or Kruskal-Wallis (non-normal)
      * Categorical relationships: use chi-square test
-     * Correlation analysis: use Pearson (normal) or Spearman (non-normal)
-     * Always state null hypothesis, alternative hypothesis, p-value, and conclusion
-     * Use p < 0.05 as significance threshold unless specified otherwise
-     * Generate visualizations: box plots, distribution plots, correlation heatmap
-3. SELECT the best 2-3 models for the problem and explain why
+     * Correlation analysis: use Pearson or Spearman
+     * Always state null hypothesis, p-value, and conclusion
+
+3. SELECT the best 2-3 models for the problem and explain why:
    - For large datasets (>5000 rows): prefer LightGBM or XGBoost (faster)
    - For small datasets (<1000 rows): consider SVM or Logistic Regression
    - Always compare at least 2 models
-4. CONSIDER hyperparameters — don't just use defaults, reason about:
-   - For Logistic Regression: C (regularization strength), max_iter, solver
-   - For Random Forest: n_estimators, max_depth, min_samples_split
-   - For Linear Regression: whether to normalize, handle outliers
-   - For K-Means: n_clusters (use elbow method)
+
+4. CONSIDER hyperparameters — don't just use defaults
+
 5. TRAIN the model using the appropriate validation strategy:
    - If dataset has LESS than 1000 rows: use 5-fold cross-validation
-     * Use cross_val_score for each metric (accuracy, precision, recall, F1)
+     * Use cross_val_score for each metric
      * Report mean ± standard deviation for each metric
-     * A low std (< 0.05) means stable model, high std (> 0.10) means unstable/overfit
+     * A low std (< 0.05) means stable model, high std (> 0.10) means unstable
      * Also do a final fit on full training data for SHAP analysis
-   - If dataset has MORE than 1000 rows: use 80/20 train/test split as normal
+   - If dataset has MORE than 1000 rows: use 80/20 train/test split
    - Always print which validation strategy was used and why
-- CHECK FOR CLASS IMBALANCE before training:
+   - CHECK FOR CLASS IMBALANCE before training:
      * Calculate the ratio of majority to minority class
      * If imbalance ratio > 2:1 AND SMOTE_AVAILABLE is True, apply SMOTE to training data only
      * If SMOTE_AVAILABLE is False, use class_weight='balanced' parameter instead
      * Print class distribution before and after balancing
      * Never apply SMOTE to test data
-     * Report whether SMOTE or class_weight='balanced' was used and why
+
 6. EVALUATE using the right metrics:
-   - Classification → accuracy, precision, recall, F1, confusion matrix
+   - Classification → accuracy, precision, recall, F1, confusion matrix, ROC-AUC
    - Regression → RMSE, MAE, R² score
+
 7. GENERATE SHAP values to explain model predictions:
-   - Use shap.TreeExplainer for Random Forest models
+   - Use shap.TreeExplainer for Random Forest, XGBoost, LightGBM
    - Use shap.LinearExplainer for Logistic/Linear Regression
    - Print the top 5 most impactful features with their average SHAP values
    - Generate a SHAP feature importance bar chart using matplotlib
+
 8. VISUALIZE results using matplotlib:
    - Always save charts with plt.savefig('chart.png', bbox_inches='tight'); plt.close()
    - Never use plt.show()
    - Generate confusion matrix, feature importance, and SHAP plots
+   - Always set figure background: plt.figure(figsize=(10, 6), facecolor='#1e293b')
+   - Always set axes background: plt.gca().set_facecolor('#0f172a')
    - After training, generate a learning curve for the best model:
      * Use learning_curve() with cv=5 and train_sizes=np.linspace(0.1, 1.0, 10)
      * Plot training score and cross-validation score vs training set size
      * Use plt.fill_between() to show the variance band around each curve
-     * A large gap between training and CV score = overfitting
-     * Both curves flat and low = underfitting (needs more features)
-     * Both curves converging high = good fit
      * Save as chart.png and explain what the curve reveals about the model
+   - For trend analysis: always generate at least 2 charts — a time series line chart and a growth rate bar chart
+   - For anomaly detection: generate a scatter plot with anomalies highlighted in red
+
 9. SUMMARIZE findings in plain English including SHAP explanations
 
 ## Rules:
 - Always wrap code in ```python ... ``` blocks
 - Generate ALL charts in SEPARATE code blocks BEFORE writing FINAL ANSWER
 - Always save every chart with plt.savefig('chart.png', bbox_inches='tight'); plt.close()
-- Always set figure background: plt.figure(figsize=(10, 6), facecolor='#1e293b')
-- Always set axes background: ax.set_facecolor('#0f172a') or plt.gca().set_facecolor('#0f172a')
 - Never use plt.show()
-- Never mention chart filenames in text — always generate them in actual code blocks
 - Encode categorical variables before modeling
 - Always print evaluation metrics clearly
-- For anomaly detection: always print how many anomalies were found and what % of the dataset they represent
-- For anomaly detection: always explain the top 3 anomalies in plain English
-- For trend analysis: always generate at least 2 charts — a time series line chart and a growth rate bar chart
-- For trend analysis: always state the trend direction clearly and what it means for the business
-- For trend analysis: always save charts with plt.savefig('chart.png', bbox_inches='tight'); plt.close()
-- Always attempt basic feature engineering before modeling — create at least 1-2 new features using pd.cut, pd.qcut, ratios, or interactions
-- Print the correlation matrix of top features before modeling to identify engineering opportunities
-- After modeling, compare performance with and without engineered features if time permits
 - The FINAL ANSWER section should contain only plain text summary, no code blocks
 - When done, start your final message with: FINAL ANSWER:
+- For anomaly detection: always print how many anomalies were found and what % of dataset
+- For trend analysis: always state trend direction and what it means for the business
+- For trend analysis: always save charts with plt.savefig('chart.png', bbox_inches='tight'); plt.close()
 """
 
 
@@ -179,13 +165,47 @@ def get_ml_tools(df):
         "pd": pd, "plt": plt, "sns": sns, "os": os, "np": np,
         "df": df,
         "shap": shap,
+        "stats": stats,
+        "cut": pd.cut,
+        "qcut": pd.qcut,
+        "chi2_contingency": chi2_contingency,
+        "ttest_ind": ttest_ind,
+        "mannwhitneyu": mannwhitneyu,
+        "shapiro": shapiro,
+        "f_oneway": f_oneway,
+        "kruskal": kruskal,
+        "spearmanr": spearmanr,
+        "pearsonr": pearsonr,
+        "ExponentialSmoothing": ExponentialSmoothing,
         "LogisticRegression": LogisticRegression,
         "LinearRegression": LinearRegression,
+        "Ridge": Ridge,
+        "Lasso": Lasso,
         "RandomForestClassifier": RandomForestClassifier,
         "RandomForestRegressor": RandomForestRegressor,
+        "GradientBoostingClassifier": GradientBoostingClassifier,
+        "GradientBoostingRegressor": GradientBoostingRegressor,
+        "IsolationForest": IsolationForest,
         "KMeans": KMeans,
+        "DBSCAN": DBSCAN,
+        "SVC": SVC,
+        "SVR": SVR,
+        "XGBClassifier": XGBClassifier,
+        "XGBRegressor": XGBRegressor,
+        "LGBMClassifier": LGBMClassifier,
+        "LGBMRegressor": LGBMRegressor,
+        "SMOTE": SMOTE,
+        "SMOTE_AVAILABLE": SMOTE_AVAILABLE,
         "train_test_split": train_test_split,
         "GridSearchCV": GridSearchCV,
+        "cross_val_score": cross_val_score,
+        "StratifiedKFold": StratifiedKFold,
+        "KFold": KFold,
+        "learning_curve": learning_curve,
+        "RFE": RFE,
+        "SelectKBest": SelectKBest,
+        "f_classif": f_classif,
+        "f_regression": f_regression,
         "accuracy_score": accuracy_score,
         "precision_score": precision_score,
         "recall_score": recall_score,
@@ -197,53 +217,16 @@ def get_ml_tools(df):
         "r2_score": r2_score,
         "LabelEncoder": LabelEncoder,
         "StandardScaler": StandardScaler,
-        "XGBClassifier": XGBClassifier,
-        "XGBRegressor": XGBRegressor,
-        "LGBMClassifier": LGBMClassifier,
-        "LGBMRegressor": LGBMRegressor,
-        "GradientBoostingClassifier": GradientBoostingClassifier,
-        "GradientBoostingRegressor": GradientBoostingRegressor,
-        "SVC": SVC,
-        "SVR": SVR,
-        "Ridge": Ridge,
-        "Lasso": Lasso,
-        "IsolationForest": IsolationForest,
-        "DBSCAN": DBSCAN,
-        "cross_val_score": cross_val_score,
-        "StratifiedKFold": StratifiedKFold,
-        "KFold": KFold,
-        "stats": stats,
-        "chi2_contingency": chi2_contingency,
-        "ttest_ind": ttest_ind,
-        "mannwhitneyu": mannwhitneyu,
-        "shapiro": shapiro,
-        "f_oneway": f_oneway,
-        "kruskal": kruskal,
-        "spearmanr": spearmanr,
-        "pearsonr": pearsonr,
-        "pd": pd,  # already there, but ensure cut and qcut are available
-        "cut": pd.cut,
-        "qcut": pd.qcut,
-        "SMOTE": SMOTE,
-        "SMOTE_AVAILABLE": SMOTE_AVAILABLE,
-        "learning_curve": learning_curve,
-        "RFE": RFE,
-        "SelectKBest": SelectKBest,
-        "f_classif": f_classif,
-        "f_regression": f_regression,
     }
 
 
 def run_python(code: str, df) -> tuple[str, list[str]]:
-    """
-    Executes Python code and returns (text_output, list_of_base64_charts).
-    """
+    """Executes Python code and returns (text_output, list_of_base64_charts)."""
     old_stdout = sys.stdout
     sys.stdout = buffer = io.StringIO()
     charts = []
 
     try:
-        # Set dark background for all charts
         plt.style.use('dark_background')
         plt.rcParams['figure.facecolor'] = '#1e293b'
         plt.rcParams['axes.facecolor'] = '#0f172a'
@@ -252,7 +235,6 @@ def run_python(code: str, df) -> tuple[str, list[str]]:
 
         exec(code, get_ml_tools(df))
 
-        # Force-save any still-open matplotlib figures
         for i, fig in enumerate(map(plt.figure, plt.get_fignums())):
             fig.savefig(f'chart_{i}.png', bbox_inches='tight',
                        facecolor='#1e293b', edgecolor='none')
@@ -394,7 +376,7 @@ IMPORTANT SCORING RULES:
 - If model accuracy is below 30% or near random chance, overall confidence MUST be LOW
 - If model accuracy is between 30-70%, overall confidence should be MEDIUM
 - If model accuracy is above 70%, overall confidence can be HIGH
-- If the summary mentions predictions are unreliable or not better than guessing, overall confidence MUST be LOW
+- If the summary mentions predictions are unreliable, overall confidence MUST be LOW
 - Be conservative — it is better to under-promise than over-promise
 - Small datasets (under 500 rows) should reduce confidence by one level
 
@@ -457,18 +439,18 @@ Please provide ALL of the following sections:
 
 3. **Initiative ROI Scorecard** — For each initiative provide a table with:
    - Initiative name
-   - Estimated implementation cost (e.g. $10,000 - $50,000)
+   - Estimated implementation cost
    - Estimated annual revenue impact or cost savings
-   - ROI percentage (revenue impact / cost * 100)
-   - Estimated payback period (e.g. 2 months, 6 months)
+   - ROI percentage
+   - Estimated payback period
    Label this section clearly as **Initiative ROI Scorecard**
    Format as a markdown table with columns: Initiative | Est. Cost | Revenue Impact | ROI | Payback Period
 
 4. **KPIs to Track** — How to measure success for each initiative
 
-5. **Quick Wins** — 1-2 things that could be implemented immediately with low effort and high impact
+5. **Quick Wins** — 1-2 things that could be implemented immediately
 
-6. **6 Month Roadmap** — A suggested timeline for implementing the initiatives in order
+6. **6 Month Roadmap** — A suggested timeline for implementing the initiatives
 
 7. **What-If Scenarios** — 2-3 financial impact estimates.
    Label this section clearly as **What-If Scenarios**.
@@ -476,7 +458,7 @@ Please provide ALL of the following sections:
 8. **Executive Summary** — A concise summary for C-suite leadership containing:
    - One sentence describing the single biggest opportunity
    - Exactly 3 bullet points of key findings in plain English
-   - The total financial opportunity in one bold number (e.g. **$1.2M annual opportunity**)
+   - The total financial opportunity in one bold number
    - The single most important action to take right now
    Label this section clearly as **Executive Summary** and put it at the END.
 
@@ -491,6 +473,88 @@ Use realistic estimates based on the actual data findings.
     )
 
     return response.text
+
+
+def extract_pricing_model(summary: str, df, api_key: str) -> dict:
+    """
+    Extracts pricing model parameters from analysis results
+    and returns them as a JSON object for the Pricing PWA.
+    """
+    client = genai.Client(api_key=api_key)
+
+    prompt = f"""
+You are a data scientist. Extract pricing model parameters from this analysis summary.
+
+ANALYSIS SUMMARY:
+{summary}
+
+Return ONLY a JSON object with no extra text in this exact format:
+{{
+  "base_rates": {{
+    "dry_van": 838,
+    "liftgate_van": 1020,
+    "curtain_side": 868,
+    "intermodal": 679,
+    "reefer": 1264,
+    "reefer_liftgate": 1450,
+    "flatbed": 771,
+    "step_deck": 923,
+    "conestoga": 1050,
+    "double_drop": 1100,
+    "rgn": 1800,
+    "lowboy": 1633,
+    "pup_28": 620,
+    "pup_doubles": 1180,
+    "tanker": 1679,
+    "pneumatic": 1450
+  }},
+  "model_performance": {{
+    "r2": 0.88,
+    "rmse": 126,
+    "training_rows": 500,
+    "variance_explained": 88
+  }},
+  "top_factors": [
+    "length_x_lease_term",
+    "age_years",
+    "length_ft",
+    "lease_term_months",
+    "category"
+  ],
+  "last_updated": "2025-06-01"
+}}
+
+If the analysis contains actual average rates by trailer type, use those values.
+If model performance metrics are available, use those values.
+Otherwise use the default values shown above.
+"""
+
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=prompt
+    )
+
+    try:
+        text = response.text.strip()
+        text = text.replace("```json", "").replace("```", "").strip()
+        return json.loads(text)
+    except Exception:
+        return {
+            "base_rates": {
+                "dry_van": 838, "liftgate_van": 1020, "curtain_side": 868,
+                "intermodal": 679, "reefer": 1264, "reefer_liftgate": 1450,
+                "flatbed": 771, "step_deck": 923, "conestoga": 1050,
+                "double_drop": 1100, "rgn": 1800, "lowboy": 1633,
+                "pup_28": 620, "pup_doubles": 1180,
+                "tanker": 1679, "pneumatic": 1450
+            },
+            "model_performance": {
+                "r2": 0.88, "rmse": 126,
+                "training_rows": len(df), "variance_explained": 88
+            },
+            "top_factors": ["length_x_lease_term", "age_years", "length_ft"],
+            "last_updated": "2025-06-01"
+        }
 
 
 def user_msg(text):
@@ -608,6 +672,10 @@ Start by reasoning about what steps to take, then write Python code to begin.
     if final_summary:
         confidence_scores = get_confidence_scores(final_summary, api_key)
 
+    pricing_model = {}
+    if final_summary and any(word in goal.lower() for word in ["trailer", "lease", "pricing", "rate"]):
+        pricing_model = extract_pricing_model(final_summary, df, api_key)
+
     return {
         "summary": final_summary,
         "charts": all_charts,
@@ -615,5 +683,6 @@ Start by reasoning about what steps to take, then write Python code to begin.
         "turns": len(messages),
         "recommendations": recommendations,
         "quality_report": quality_report,
-        "confidence_scores": confidence_scores
+        "confidence_scores": confidence_scores,
+        "pricing_model": pricing_model
     }

@@ -51,11 +51,12 @@ async def analyze(
     return {
         "summary": result["summary"],
         "charts": result["charts"],
-        "plotly_charts": result["plotly_charts"],
+        "plotly_charts": result.get("plotly_charts", []),
         "turns": result["turns"],
         "recommendations": result["recommendations"],
         "quality_report": result["quality_report"],
         "confidence_scores": result["confidence_scores"],
+        "pricing_model": result.get("pricing_model", {}),
         "rows": len(df),
         "columns": len(df.columns)
     }
