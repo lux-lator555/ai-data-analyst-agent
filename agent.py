@@ -61,8 +61,8 @@ You are given a dataset and a goal. You reason step by step like a senior data s
      * Use RFE with the primary model and n_features_to_select=10 (or all if fewer than 10)
      * Print which features were selected and which were eliminated
      * Use only the selected features for final model training
-   - Always attempt basic feature engineering before modeling — create at least 1-2 new features using pd.cut, pd.qcut, ratios, or interactions
-   - Print the correlation matrix of top features before modeling to identify engineering opportunities
+   - Always attempt basic feature engineering before modeling
+   - Print the correlation matrix of top features before modeling
 
 2. IDENTIFY the problem type based on the target variable:
    - Binary column (0/1, yes/no) → Logistic Regression + Random Forest/XGBoost/LightGBM
@@ -139,7 +139,7 @@ You are given a dataset and a goal. You reason step by step like a senior data s
      * Plot training score and cross-validation score vs training set size
      * Use plt.fill_between() to show the variance band around each curve
      * Save as chart.png and explain what the curve reveals about the model
-   - For trend analysis: always generate at least 2 charts — a time series line chart and a growth rate bar chart
+   - For trend analysis: always generate at least 2 charts
    - For anomaly detection: generate a scatter plot with anomalies highlighted in red
 
 9. SUMMARIZE findings in plain English including SHAP explanations
@@ -155,7 +155,6 @@ You are given a dataset and a goal. You reason step by step like a senior data s
 - When done, start your final message with: FINAL ANSWER:
 - For anomaly detection: always print how many anomalies were found and what % of dataset
 - For trend analysis: always state trend direction and what it means for the business
-- For trend analysis: always save charts with plt.savefig('chart.png', bbox_inches='tight'); plt.close()
 """
 
 
@@ -237,7 +236,7 @@ def run_python(code: str, df) -> tuple[str, list[str]]:
 
         for i, fig in enumerate(map(plt.figure, plt.get_fignums())):
             fig.savefig(f'chart_{i}.png', bbox_inches='tight',
-                       facecolor='#1e293b', edgecolor='none')
+                        facecolor='#1e293b', edgecolor='none')
             plt.close(fig)
 
         output = buffer.getvalue()
@@ -475,58 +474,66 @@ Use realistic estimates based on the actual data findings.
     return response.text
 
 
-def extract_pricing_model(summary: str, df, api_key: str) -> dict:
+def extract_model_export(summary: str, df, api_key: str) -> dict:
     """
-    Extracts pricing model parameters from analysis results
-    and returns them as a JSON object for the Pricing PWA.
+    Extracts model parameters from analysis results
+    and returns them as a JSON object for export to any PWA.
     """
     client = genai.Client(api_key=api_key)
 
     prompt = f"""
-You are a data scientist. Extract pricing model parameters from this analysis summary.
+You are a data scientist. Extract key model parameters from this analysis summary.
 
 ANALYSIS SUMMARY:
 {summary}
 
 Return ONLY a JSON object with no extra text in this exact format:
 {{
-  "base_rates": {{
-    "dry_van": 838,
-    "liftgate_van": 1020,
-    "curtain_side": 868,
-    "intermodal": 679,
-    "reefer": 1264,
-    "reefer_liftgate": 1450,
-    "flatbed": 771,
-    "step_deck": 923,
-    "conestoga": 1050,
-    "double_drop": 1100,
-    "rgn": 1800,
-    "lowboy": 1633,
-    "pup_28": 620,
-    "pup_doubles": 1180,
-    "tanker": 1679,
-    "pneumatic": 1450
-  }},
+  "analysis_type": "regression|classification|clustering|anomaly|timeseries",
+  "target_variable": "name of target variable or null",
   "model_performance": {{
-    "r2": 0.88,
-    "rmse": 126,
-    "training_rows": 500,
-    "variance_explained": 88
+    "r2": null,
+    "rmse": null,
+    "accuracy": null,
+    "f1_score": null,
+    "roc_auc": null,
+    "training_rows": {len(df)},
+    "variance_explained": null
   }},
-  "top_factors": [
-    "length_x_lease_term",
-    "age_years",
-    "length_ft",
-    "lease_term_months",
-    "category"
+  "top_features": [
+    {{"feature": "feature_name", "importance": 0.0, "direction": "positive|negative"}}
   ],
-  "last_updated": "2025-06-01"
+  "segment_averages": {{}},
+  "key_thresholds": {{}},
+  "base_rates": {{
+    "dry_van": null,
+    "reefer": null,
+    "flatbed": null,
+    "step_deck": null,
+    "lowboy": null,
+    "tanker": null,
+    "pup_28": null,
+    "pup_doubles": null,
+    "conestoga": null,
+    "double_drop": null,
+    "rgn": null,
+    "liftgate_van": null,
+    "reefer_liftgate": null,
+    "curtain_side": null,
+    "intermodal": null,
+    "pneumatic": null
+  }},
+  "last_updated": "2025-06-11",
+  "dataset_rows": {len(df)},
+  "dataset_columns": {len(df.columns)}
 }}
 
-If the analysis contains actual average rates by trailer type, use those values.
-If model performance metrics are available, use those values.
-Otherwise use the default values shown above.
+Fill in values from the analysis where available.
+For trailer/pricing analysis: populate base_rates with actual average rates found.
+For classification: populate accuracy, f1_score, roc_auc in model_performance.
+For regression: populate r2, rmse, variance_explained in model_performance.
+For clustering: populate segment_averages with cluster characteristics.
+Leave fields as null if not applicable to this analysis type.
 """
 
     response = client.models.generate_content(
@@ -540,20 +547,12 @@ Otherwise use the default values shown above.
         return json.loads(text)
     except Exception:
         return {
-            "base_rates": {
-                "dry_van": 838, "liftgate_van": 1020, "curtain_side": 868,
-                "intermodal": 679, "reefer": 1264, "reefer_liftgate": 1450,
-                "flatbed": 771, "step_deck": 923, "conestoga": 1050,
-                "double_drop": 1100, "rgn": 1800, "lowboy": 1633,
-                "pup_28": 620, "pup_doubles": 1180,
-                "tanker": 1679, "pneumatic": 1450
-            },
-            "model_performance": {
-                "r2": 0.88, "rmse": 126,
-                "training_rows": len(df), "variance_explained": 88
-            },
-            "top_factors": ["length_x_lease_term", "age_years", "length_ft"],
-            "last_updated": "2025-06-01"
+            "analysis_type": "unknown",
+            "model_performance": {"training_rows": len(df)},
+            "top_features": [],
+            "last_updated": "2025-06-11",
+            "dataset_rows": len(df),
+            "dataset_columns": len(df.columns)
         }
 
 
@@ -672,9 +671,9 @@ Start by reasoning about what steps to take, then write Python code to begin.
     if final_summary:
         confidence_scores = get_confidence_scores(final_summary, api_key)
 
-    pricing_model = {}
-    if final_summary and any(word in goal.lower() for word in ["trailer", "lease", "pricing", "rate"]):
-        pricing_model = extract_pricing_model(final_summary, df, api_key)
+    model_export = {}
+    if final_summary:
+        model_export = extract_model_export(final_summary, df, api_key)
 
     return {
         "summary": final_summary,
@@ -684,5 +683,5 @@ Start by reasoning about what steps to take, then write Python code to begin.
         "recommendations": recommendations,
         "quality_report": quality_report,
         "confidence_scores": confidence_scores,
-        "pricing_model": pricing_model
+        "model_export": model_export
     }
