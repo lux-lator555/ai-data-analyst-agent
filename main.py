@@ -56,7 +56,7 @@ async def analyze(
         "recommendations": result["recommendations"],
         "quality_report": result["quality_report"],
         "confidence_scores": result["confidence_scores"],
-        "pricing_model": result.get("pricing_model", {}),
+        "model_export": result.get("model_export", {}),
         "rows": len(df),
         "columns": len(df.columns)
     }
