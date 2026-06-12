@@ -171,7 +171,10 @@ You are given a dataset and a goal. You reason step by step like a senior data s
      * Run PCA with n_components=2
      * Print the explained variance ratio for each component
      * Generate a 2D scatter plot of the first two principal components
-     * If a target/label/cluster column exists, color the points by that column
+     * Use bright, high-contrast colors for scatter points (e.g. '#6366f1' and '#f87171' or plt.cm.Set2)
+     * Set edgecolors='white' and alpha=0.7 on scatter points for visibility on dark background
+     * If a target/label/cluster column exists, color the points by that column with a legend
+     * Set legend facecolor to '#1e293b' and labelcolor to 'white'
      * Print which original features contribute most to each principal component
      * Explain in plain English what the principal components represent
 
