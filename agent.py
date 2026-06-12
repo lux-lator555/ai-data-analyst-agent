@@ -111,6 +111,14 @@ You are given a dataset and a goal. You reason step by step like a senior data s
      * Generate a scatter plot of Recency vs Frequency colored by segment
      * Print the average monetary value per segment
      * Recommend marketing actions for each segment
+     - Dataset has customer ID, signup/join date, and activity/transaction dates → Cohort Analysis:
+     * Group customers into cohorts based on their signup month (e.g. "2023-01", "2023-02")
+     * For each cohort, calculate retention rate or revenue for each subsequent month/period
+     * Build a cohort table: rows = cohort month, columns = months since signup, values = retention % or revenue
+     * Generate a heatmap visualization of the cohort table using seaborn
+     * Identify whether newer cohorts retain better or worse than older cohorts
+     * Calculate average retention rate at month 1, month 3, and month 6 across all cohorts
+     * Explain what the cohort trends mean for the business — are retention efforts improving over time?
 
 3. SELECT the best 2-3 models for the problem and explain why:
    - For large datasets (>5000 rows): prefer LightGBM or XGBoost (faster)
