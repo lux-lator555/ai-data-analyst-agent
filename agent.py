@@ -95,6 +95,22 @@ You are given a dataset and a goal. You reason step by step like a senior data s
      * Categorical relationships: use chi-square test
      * Correlation analysis: use Pearson or Spearman
      * Always state null hypothesis, p-value, and conclusion
+     - Dataset has customer ID, transaction date, and monetary value → RFM Analysis:
+     * Calculate Recency (days since last transaction per customer)
+     * Calculate Frequency (number of transactions per customer)
+     * Calculate Monetary (total or average spend per customer)
+     * Score each metric 1-5 using pd.qcut (5 = best)
+     * Combine into an RFM segment label (e.g. "Champions", "Loyal Customers", "At Risk", "Lost")
+     * Use these segment rules as a guide:
+       - Champions: high R, F, and M scores (4-5 on all)
+       - Loyal Customers: high F and M, moderate R
+       - At Risk: low R, but historically high F and M
+       - Lost: low R, F, and M
+       - New Customers: high R, low F and M
+     * Generate a bar chart showing customer count per segment
+     * Generate a scatter plot of Recency vs Frequency colored by segment
+     * Print the average monetary value per segment
+     * Recommend marketing actions for each segment
 
 3. SELECT the best 2-3 models for the problem and explain why:
    - For large datasets (>5000 rows): prefer LightGBM or XGBoost (faster)
