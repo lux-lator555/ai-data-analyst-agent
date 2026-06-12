@@ -30,6 +30,7 @@ from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.feature_selection import RFE, SelectKBest, f_classif, f_regression
 from xgboost import XGBClassifier, XGBRegressor
 from lightgbm import LGBMClassifier, LGBMRegressor
+from sklearn.decomposition import PCA
 from scipy import stats
 from scipy.stats import chi2_contingency, ttest_ind, mannwhitneyu, shapiro, f_oneway, kruskal, spearmanr, pearsonr
 from statsmodels.tsa.holtwinters import ExponentialSmoothing
@@ -165,6 +166,14 @@ You are given a dataset and a goal. You reason step by step like a senior data s
      * Save as chart.png and explain what the curve reveals about the model
    - For trend analysis: always generate at least 2 charts
    - For anomaly detection: generate a scatter plot with anomalies highlighted in red
+   - If the dataset has 5+ numeric features, also run PCA for visualization:
+     * Standardize features first using StandardScaler
+     * Run PCA with n_components=2
+     * Print the explained variance ratio for each component
+     * Generate a 2D scatter plot of the first two principal components
+     * If a target/label/cluster column exists, color the points by that column
+     * Print which original features contribute most to each principal component
+     * Explain in plain English what the principal components represent
 
 9. SUMMARIZE findings in plain English including SHAP explanations
 
@@ -240,6 +249,7 @@ def get_ml_tools(df):
         "r2_score": r2_score,
         "LabelEncoder": LabelEncoder,
         "StandardScaler": StandardScaler,
+        "PCA": PCA,
     }
 
 
