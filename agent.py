@@ -510,6 +510,136 @@ Use realistic estimates based on the actual data findings.
 
     return response.text
 
+def generate_roi_charts(recommendations: str, api_key: str) -> list[str]:
+    """
+    Extracts ROI scorecard data from recommendations text and generates
+    before/after comparison charts and a payback period timeline.
+    Returns a list of base64-encoded chart images.
+    """
+    client = genai.Client(api_key=api_key)
+
+    prompt = f"""
+Extract the ROI Scorecard data from this business recommendations text.
+
+RECOMMENDATIONS TEXT:
+{recommendations}
+
+Return ONLY a JSON array with no extra text, containing up to 3 initiatives:
+[
+  {{
+    "initiative": "Initiative name",
+    "current_value": 1000000,
+    "projected_value": 1200000,
+    "metric_label": "Annual Revenue",
+    "payback_months": 6
+  }}
+]
+
+Use realistic numbers extracted or inferred from the text.
+If the text doesn't have explicit current values, estimate a reasonable baseline
+(e.g. if revenue impact is $200K and ROI is 300%, current investment might be around $66K,
+so projected = current + revenue impact).
+metric_label should describe what's being compared (e.g. "Annual Revenue", "Customers Retained", "Cost Savings").
+"""
+
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=prompt
+    )
+
+    charts = []
+    try:
+        text = response.text.strip()
+        text = text.replace("```json", "").replace("```", "").strip()
+        initiatives = json.loads(text)
+    except Exception:
+        return charts
+
+    if not initiatives:
+        return charts
+
+    plt.style.use('dark_background')
+    plt.rcParams['figure.facecolor'] = '#1e293b'
+    plt.rcParams['axes.facecolor'] = '#0f172a'
+    plt.rcParams['savefig.facecolor'] = '#1e293b'
+    plt.rcParams['savefig.edgecolor'] = 'none'
+
+    try:
+        fig, ax = plt.subplots(figsize=(10, 6), facecolor='#1e293b')
+        ax.set_facecolor('#0f172a')
+
+        labels = [init["initiative"][:30] for init in initiatives]
+        current_vals = [init["current_value"] for init in initiatives]
+        projected_vals = [init["projected_value"] for init in initiatives]
+
+        x = np.arange(len(labels))
+        width = 0.35
+
+        bars1 = ax.bar(x - width/2, current_vals, width, label='Current', color='#64748b', edgecolor='white', alpha=0.8)
+        bars2 = ax.bar(x + width/2, projected_vals, width, label='Projected After Initiative', color='#4ade80', edgecolor='white', alpha=0.9)
+
+        ax.set_ylabel(initiatives[0].get("metric_label", "Value"), color='white', fontsize=12)
+        ax.set_title('Projected Impact of Recommended Initiatives', color='white', fontsize=14, fontweight='bold')
+        ax.set_xticks(x)
+        ax.set_xticklabels(labels, rotation=15, ha='right', color='white', fontsize=10)
+        ax.tick_params(colors='white')
+        ax.legend(facecolor='#1e293b', labelcolor='white', edgecolor='#334155')
+
+        for bar in bars1:
+            height = bar.get_height()
+            ax.annotate(f'{height:,.0f}', xy=(bar.get_x() + bar.get_width() / 2, height),
+                        xytext=(0, 3), textcoords="offset points", ha='center', color='white', fontsize=9)
+        for bar in bars2:
+            height = bar.get_height()
+            ax.annotate(f'{height:,.0f}', xy=(bar.get_x() + bar.get_width() / 2, height),
+                        xytext=(0, 3), textcoords="offset points", ha='center', color='#4ade80', fontsize=9, fontweight='bold')
+
+        for spine in ax.spines.values():
+            spine.set_color('#334155')
+
+        plt.tight_layout()
+        plt.savefig('roi_chart_1.png', bbox_inches='tight', facecolor='#1e293b', edgecolor='none')
+        plt.close(fig)
+
+        with open('roi_chart_1.png', 'rb') as f:
+            charts.append(base64.b64encode(f.read()).decode('utf-8'))
+        os.remove('roi_chart_1.png')
+    except Exception as e:
+        print(f"ROI chart 1 failed: {e}")
+
+    try:
+        fig, ax = plt.subplots(figsize=(10, 4), facecolor='#1e293b')
+        ax.set_facecolor('#0f172a')
+
+        labels = [init["initiative"][:30] for init in initiatives]
+        paybacks = [init.get("payback_months", 6) for init in initiatives]
+        colors = ['#6366f1', '#4ade80', '#fbbf24']
+
+        bars = ax.barh(labels, paybacks, color=colors[:len(labels)], edgecolor='white', alpha=0.85)
+
+        ax.set_xlabel('Payback Period (months)', color='white', fontsize=12)
+        ax.set_title('Estimated Payback Period by Initiative', color='white', fontsize=14, fontweight='bold')
+        ax.tick_params(colors='white')
+
+        for bar, val in zip(bars, paybacks):
+            ax.annotate(f'{val} mo', xy=(bar.get_width(), bar.get_y() + bar.get_height() / 2),
+                        xytext=(5, 0), textcoords="offset points", va='center', color='white', fontsize=10, fontweight='bold')
+
+        for spine in ax.spines.values():
+            spine.set_color('#334155')
+
+        plt.tight_layout()
+        plt.savefig('roi_chart_2.png', bbox_inches='tight', facecolor='#1e293b', edgecolor='none')
+        plt.close(fig)
+
+        with open('roi_chart_2.png', 'rb') as f:
+            charts.append(base64.b64encode(f.read()).decode('utf-8'))
+        os.remove('roi_chart_2.png')
+    except Exception as e:
+        print(f"ROI chart 2 failed: {e}")
+
+    plt.rcParams.update(plt.rcParamsDefault)
+    return charts
 
 def extract_model_export(summary: str, df, api_key: str) -> dict:
     """
@@ -701,8 +831,10 @@ Start by reasoning about what steps to take, then write Python code to begin.
             messages.append(user_msg("Continue your analysis."))
 
     recommendations = ""
+    roi_charts = []
     if final_summary:
         recommendations = get_business_recommendations(final_summary, api_key)
+        roi_charts = generate_roi_charts(recommendations, api_key)
 
     confidence_scores = {}
     if final_summary:
@@ -715,6 +847,7 @@ Start by reasoning about what steps to take, then write Python code to begin.
     return {
         "summary": final_summary,
         "charts": all_charts,
+        "roi_charts": roi_charts,
         "plotly_charts": [],
         "turns": len(messages),
         "recommendations": recommendations,

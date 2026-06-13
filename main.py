@@ -54,6 +54,7 @@ async def analyze(
         "plotly_charts": result.get("plotly_charts", []),
         "turns": result["turns"],
         "recommendations": result["recommendations"],
+        "roi_charts": result.get("roi_charts", []),
         "quality_report": result["quality_report"],
         "confidence_scores": result["confidence_scores"],
         "model_export": result.get("model_export", {}),
