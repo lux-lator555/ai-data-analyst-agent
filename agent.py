@@ -212,6 +212,8 @@ You are given a dataset and a goal. You reason step by step like a senior data s
 - For Six Sigma analysis: always generate at least 3 charts — control chart, Pareto chart, and a process capability visualization
 - For Six Sigma analysis: always state the current sigma level and target sigma level clearly
 - For Six Sigma analysis: always quantify the financial impact of moving from current to target sigma level
+- For Six Sigma analysis: MANDATORY charts are (1) control chart with UCL/LCL, (2) Pareto chart, (3) SHAP feature importance. Generate these BEFORE writing the DMAIC summary.
+- For Six Sigma analysis: generate charts in the FIRST code block, DMAIC text summary in the SECOND code block.
 """
 
 
