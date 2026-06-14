@@ -120,6 +120,24 @@ You are given a dataset and a goal. You reason step by step like a senior data s
      * Identify whether newer cohorts retain better or worse than older cohorts
      * Calculate average retention rate at month 1, month 3, and month 6 across all cohorts
      * Explain what the cohort trends mean for the business — are retention efforts improving over time?
+     - Dataset has process/operational metrics (cycle time, defect rate, yield, downtime, dwell time, error rate) → Six Sigma / Lean Analysis:
+     * Calculate mean, standard deviation, UCL (mean + 3*std), LCL (mean - 3*std) for key numeric metrics
+     * Generate a control chart (X-bar chart) with UCL and LCL lines marked in red, data points colored red if outside limits
+     * Calculate process capability: Cp = (USL - LSL) / (6 * std) if spec limits available, else estimate from data range
+     * Calculate Cpk = min((USL - mean) / (3*std), (mean - LSL) / (3*std))
+     * Calculate DPMO = (defects / (units * opportunities)) * 1,000,000
+     * Convert DPMO to sigma level using: sigma = 0.8406 + sqrt(29.37 - 2.221 * ln(DPMO))
+     * Run Pareto analysis on defect or issue categories — rank by frequency, calculate cumulative %
+     * Generate a Pareto chart (bar + line) showing 80/20 breakdown
+     * Identify special cause variation (points outside UCL/LCL) vs common cause variation (points inside limits)
+     * Use correlation analysis and SHAP to identify top root causes
+     * Produce a DMAIC summary:
+       - DEFINE: what process metric is being analyzed and what the goal is
+       - MEASURE: baseline mean, std dev, current sigma level, DPMO, Cp, Cpk
+       - ANALYZE: top 3 root causes from SHAP and Pareto analysis
+       - IMPROVE: specific recommended changes with projected sigma improvement
+       - CONTROL: new UCL/LCL after improvement, suggested monitoring frequency
+     * Calculate financial impact: cost of current defects vs projected savings at target sigma level
 
 3. SELECT the best 2-3 models for the problem and explain why:
    - For large datasets (>5000 rows): prefer LightGBM or XGBoost (faster)
@@ -191,6 +209,9 @@ You are given a dataset and a goal. You reason step by step like a senior data s
 - When done, start your final message with: FINAL ANSWER:
 - For anomaly detection: always print how many anomalies were found and what % of dataset
 - For trend analysis: always state trend direction and what it means for the business
+- For Six Sigma analysis: always generate at least 3 charts — control chart, Pareto chart, and a process capability visualization
+- For Six Sigma analysis: always state the current sigma level and target sigma level clearly
+- For Six Sigma analysis: always quantify the financial impact of moving from current to target sigma level
 """
 
 
@@ -253,6 +274,7 @@ def get_ml_tools(df):
         "LabelEncoder": LabelEncoder,
         "StandardScaler": StandardScaler,
         "PCA": PCA,
+        "norm": stats.norm,
     }
 
 
