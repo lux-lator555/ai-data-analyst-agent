@@ -27,10 +27,10 @@ from sklearn.metrics import (
     mean_squared_error, mean_absolute_error, r2_score
 )
 from sklearn.preprocessing import LabelEncoder, StandardScaler
+from sklearn.decomposition import PCA
 from sklearn.feature_selection import RFE, SelectKBest, f_classif, f_regression
 from xgboost import XGBClassifier, XGBRegressor
 from lightgbm import LGBMClassifier, LGBMRegressor
-from sklearn.decomposition import PCA
 from scipy import stats
 from scipy.stats import chi2_contingency, ttest_ind, mannwhitneyu, shapiro, f_oneway, kruskal, spearmanr, pearsonr
 from statsmodels.tsa.holtwinters import ExponentialSmoothing
@@ -96,47 +96,34 @@ You are given a dataset and a goal. You reason step by step like a senior data s
      * Categorical relationships: use chi-square test
      * Correlation analysis: use Pearson or Spearman
      * Always state null hypothesis, p-value, and conclusion
-     - Dataset has customer ID, transaction date, and monetary value → RFM Analysis:
+   - Dataset has customer ID, transaction date, and monetary value → RFM Analysis:
      * Calculate Recency (days since last transaction per customer)
      * Calculate Frequency (number of transactions per customer)
      * Calculate Monetary (total or average spend per customer)
      * Score each metric 1-5 using pd.qcut (5 = best)
-     * Combine into an RFM segment label (e.g. "Champions", "Loyal Customers", "At Risk", "Lost")
-     * Use these segment rules as a guide:
-       - Champions: high R, F, and M scores (4-5 on all)
-       - Loyal Customers: high F and M, moderate R
-       - At Risk: low R, but historically high F and M
-       - Lost: low R, F, and M
-       - New Customers: high R, low F and M
+     * Combine into RFM segment labels (Champions, Loyal, At Risk, Lost, New)
      * Generate a bar chart showing customer count per segment
      * Generate a scatter plot of Recency vs Frequency colored by segment
      * Print the average monetary value per segment
      * Recommend marketing actions for each segment
-     - Dataset has customer ID, signup/join date, and activity/transaction dates → Cohort Analysis:
-     * Group customers into cohorts based on their signup month (e.g. "2023-01", "2023-02")
-     * For each cohort, calculate retention rate or revenue for each subsequent month/period
-     * Build a cohort table: rows = cohort month, columns = months since signup, values = retention % or revenue
+   - Dataset has customer ID, signup date, and activity dates → Cohort Analysis:
+     * Group customers into cohorts based on their signup month
+     * For each cohort calculate retention rate for each subsequent month
+     * Build a cohort retention table (rows = cohort, columns = months since signup)
      * Generate a heatmap visualization of the cohort table using seaborn
      * Identify whether newer cohorts retain better or worse than older cohorts
-     * Calculate average retention rate at month 1, month 3, and month 6 across all cohorts
-     * Explain what the cohort trends mean for the business — are retention efforts improving over time?
-     - Dataset has process/operational metrics (cycle time, defect rate, yield, downtime, dwell time, error rate) → Six Sigma / Lean Analysis:
+     * Explain what the cohort trends mean for the business
+   - Dataset has process/operational metrics (cycle time, defect rate, yield, downtime, dwell time) → Six Sigma / Lean Analysis:
      * Calculate mean, standard deviation, UCL (mean + 3*std), LCL (mean - 3*std) for key numeric metrics
      * Generate a control chart (X-bar chart) with UCL and LCL lines marked in red, data points colored red if outside limits
-     * Calculate process capability: Cp = (USL - LSL) / (6 * std) if spec limits available, else estimate from data range
-     * Calculate Cpk = min((USL - mean) / (3*std), (mean - LSL) / (3*std))
-     * Calculate DPMO = (defects / (units * opportunities)) * 1,000,000
-     * Convert DPMO to sigma level using: sigma = 0.8406 + sqrt(29.37 - 2.221 * ln(DPMO))
-     * Run Pareto analysis on defect or issue categories — rank by frequency, calculate cumulative %
-     * Generate a Pareto chart (bar + line) showing 80/20 breakdown
-     * Identify special cause variation (points outside UCL/LCL) vs common cause variation (points inside limits)
+     * Calculate process capability: Cp and Cpk if spec limits available
+     * Calculate DPMO = (defects / total) * 1,000,000
+     * Convert DPMO to sigma level
+     * Run Pareto analysis on defect or issue categories
+     * Generate a Pareto chart (bar + cumulative % line) showing 80/20 breakdown
+     * Identify special cause variation (points outside UCL/LCL) vs common cause variation
      * Use correlation analysis and SHAP to identify top root causes
-     * Produce a DMAIC summary:
-       - DEFINE: what process metric is being analyzed and what the goal is
-       - MEASURE: baseline mean, std dev, current sigma level, DPMO, Cp, Cpk
-       - ANALYZE: top 3 root causes from SHAP and Pareto analysis
-       - IMPROVE: specific recommended changes with projected sigma improvement
-       - CONTROL: new UCL/LCL after improvement, suggested monitoring frequency
+     * Produce a DMAIC summary: Define, Measure, Analyze, Improve, Control
      * Calculate financial impact: cost of current defects vs projected savings at target sigma level
 
 3. SELECT the best 2-3 models for the problem and explain why:
@@ -182,19 +169,19 @@ You are given a dataset and a goal. You reason step by step like a senior data s
      * Plot training score and cross-validation score vs training set size
      * Use plt.fill_between() to show the variance band around each curve
      * Save as chart.png and explain what the curve reveals about the model
-   - For trend analysis: always generate at least 2 charts
-   - For anomaly detection: generate a scatter plot with anomalies highlighted in red
-   - If the dataset has 5+ numeric features, also run PCA for visualization:
+   - If the dataset has 5+ numeric features, also run PCA:
      * Standardize features first using StandardScaler
      * Run PCA with n_components=2
      * Print the explained variance ratio for each component
-     * Generate a 2D scatter plot of the first two principal components
-     * Use bright, high-contrast colors for scatter points (e.g. '#6366f1' and '#f87171' or plt.cm.Set2)
-     * Set edgecolors='white' and alpha=0.7 on scatter points for visibility on dark background
-     * If a target/label/cluster column exists, color the points by that column with a legend
+     * Generate a 2D scatter plot using bright high-contrast colors
+     * Set edgecolors='white' and alpha=0.7 on scatter points
+     * If a target/label/cluster column exists color the points by that column
      * Set legend facecolor to '#1e293b' and labelcolor to 'white'
-     * Print which original features contribute most to each principal component
-     * Explain in plain English what the principal components represent
+     * Print which original features contribute most to each component
+   - For trend analysis: always generate at least 2 charts
+   - For anomaly detection: generate a scatter plot with anomalies highlighted in red
+   - For Six Sigma: MANDATORY charts are (1) control chart with UCL/LCL, (2) Pareto chart, (3) SHAP feature importance. Generate these BEFORE writing the DMAIC summary.
+   - For Six Sigma: generate charts in the FIRST code block, DMAIC text summary in the SECOND code block.
 
 9. SUMMARIZE findings in plain English including SHAP explanations
 
@@ -209,11 +196,8 @@ You are given a dataset and a goal. You reason step by step like a senior data s
 - When done, start your final message with: FINAL ANSWER:
 - For anomaly detection: always print how many anomalies were found and what % of dataset
 - For trend analysis: always state trend direction and what it means for the business
-- For Six Sigma analysis: always generate at least 3 charts — control chart, Pareto chart, and a process capability visualization
 - For Six Sigma analysis: always state the current sigma level and target sigma level clearly
 - For Six Sigma analysis: always quantify the financial impact of moving from current to target sigma level
-- For Six Sigma analysis: MANDATORY charts are (1) control chart with UCL/LCL, (2) Pareto chart, (3) SHAP feature importance. Generate these BEFORE writing the DMAIC summary.
-- For Six Sigma analysis: generate charts in the FIRST code block, DMAIC text summary in the SECOND code block.
 """
 
 
@@ -224,6 +208,7 @@ def get_ml_tools(df):
         "df": df,
         "shap": shap,
         "stats": stats,
+        "norm": stats.norm,
         "cut": pd.cut,
         "qcut": pd.qcut,
         "chi2_contingency": chi2_contingency,
@@ -235,6 +220,7 @@ def get_ml_tools(df):
         "spearmanr": spearmanr,
         "pearsonr": pearsonr,
         "ExponentialSmoothing": ExponentialSmoothing,
+        "PCA": PCA,
         "LogisticRegression": LogisticRegression,
         "LinearRegression": LinearRegression,
         "Ridge": Ridge,
@@ -275,8 +261,6 @@ def get_ml_tools(df):
         "r2_score": r2_score,
         "LabelEncoder": LabelEncoder,
         "StandardScaler": StandardScaler,
-        "PCA": PCA,
-        "norm": stats.norm,
     }
 
 
@@ -385,12 +369,7 @@ Dataset info:
 Based on the columns and data types, identify:
 1. What type of problem this is (classification, regression, clustering)
 2. Which column should be the target variable (if any)
-3. A detailed analysis goal in 4-5 sentences that a non-technical business user can understand. Include:
-   - What business question we are trying to answer
-   - Which ML models to run and why
-   - What metrics to evaluate model performance
-   - What charts and visualizations to generate
-   - What business insights and recommendations to look for
+3. A detailed analysis goal in 4-5 sentences that a non-technical business user can understand.
 4. The recommended ML model(s)
 
 Respond in this exact JSON format with no extra text:
@@ -436,7 +415,6 @@ IMPORTANT SCORING RULES:
 - If model accuracy is below 30% or near random chance, overall confidence MUST be LOW
 - If model accuracy is between 30-70%, overall confidence should be MEDIUM
 - If model accuracy is above 70%, overall confidence can be HIGH
-- If the summary mentions predictions are unreliable, overall confidence MUST be LOW
 - Be conservative — it is better to under-promise than over-promise
 - Small datasets (under 500 rows) should reduce confidence by one level
 
@@ -515,7 +493,7 @@ Please provide ALL of the following sections:
 7. **What-If Scenarios** — 2-3 financial impact estimates.
    Label this section clearly as **What-If Scenarios**.
 
-8. **Executive Summary** — A concise summary for C-suite leadership containing:
+**Executive Summary** — A concise summary for C-suite leadership containing:
    - One sentence describing the single biggest opportunity
    - Exactly 3 bullet points of key findings in plain English
    - The total financial opportunity in one bold number
@@ -534,7 +512,8 @@ Use realistic estimates based on the actual data findings.
 
     return response.text
 
-def generate_roi_charts(recommendations: str, api_key: str) -> list[str]:
+
+def generate_roi_charts(recommendations: str, api_key: str) -> list:
     """
     Extracts ROI scorecard data from recommendations text and generates
     before/after comparison charts and a payback period timeline.
@@ -560,10 +539,7 @@ Return ONLY a JSON array with no extra text, containing up to 3 initiatives:
 ]
 
 Use realistic numbers extracted or inferred from the text.
-If the text doesn't have explicit current values, estimate a reasonable baseline
-(e.g. if revenue impact is $200K and ROI is 300%, current investment might be around $66K,
-so projected = current + revenue impact).
-metric_label should describe what's being compared (e.g. "Annual Revenue", "Customers Retained", "Cost Savings").
+metric_label should describe what is being compared (e.g. "Annual Revenue", "Cost Savings").
 """
 
     response = client.models.generate_content(
@@ -599,11 +575,15 @@ metric_label should describe what's being compared (e.g. "Annual Revenue", "Cust
         x = np.arange(len(labels))
         width = 0.35
 
-        bars1 = ax.bar(x - width/2, current_vals, width, label='Current', color='#64748b', edgecolor='white', alpha=0.8)
-        bars2 = ax.bar(x + width/2, projected_vals, width, label='Projected After Initiative', color='#4ade80', edgecolor='white', alpha=0.9)
+        bars1 = ax.bar(x - width/2, current_vals, width, label='Current',
+                       color='#64748b', edgecolor='white', alpha=0.8)
+        bars2 = ax.bar(x + width/2, projected_vals, width,
+                       label='Projected After Initiative',
+                       color='#4ade80', edgecolor='white', alpha=0.9)
 
         ax.set_ylabel(initiatives[0].get("metric_label", "Value"), color='white', fontsize=12)
-        ax.set_title('Projected Impact of Recommended Initiatives', color='white', fontsize=14, fontweight='bold')
+        ax.set_title('Projected Impact of Recommended Initiatives',
+                     color='white', fontsize=14, fontweight='bold')
         ax.set_xticks(x)
         ax.set_xticklabels(labels, rotation=15, ha='right', color='white', fontsize=10)
         ax.tick_params(colors='white')
@@ -611,18 +591,23 @@ metric_label should describe what's being compared (e.g. "Annual Revenue", "Cust
 
         for bar in bars1:
             height = bar.get_height()
-            ax.annotate(f'{height:,.0f}', xy=(bar.get_x() + bar.get_width() / 2, height),
-                        xytext=(0, 3), textcoords="offset points", ha='center', color='white', fontsize=9)
+            ax.annotate(f'{height:,.0f}',
+                        xy=(bar.get_x() + bar.get_width() / 2, height),
+                        xytext=(0, 3), textcoords="offset points",
+                        ha='center', color='white', fontsize=9)
         for bar in bars2:
             height = bar.get_height()
-            ax.annotate(f'{height:,.0f}', xy=(bar.get_x() + bar.get_width() / 2, height),
-                        xytext=(0, 3), textcoords="offset points", ha='center', color='#4ade80', fontsize=9, fontweight='bold')
+            ax.annotate(f'{height:,.0f}',
+                        xy=(bar.get_x() + bar.get_width() / 2, height),
+                        xytext=(0, 3), textcoords="offset points",
+                        ha='center', color='#4ade80', fontsize=9, fontweight='bold')
 
         for spine in ax.spines.values():
             spine.set_color('#334155')
 
         plt.tight_layout()
-        plt.savefig('roi_chart_1.png', bbox_inches='tight', facecolor='#1e293b', edgecolor='none')
+        plt.savefig('roi_chart_1.png', bbox_inches='tight',
+                    facecolor='#1e293b', edgecolor='none')
         plt.close(fig)
 
         with open('roi_chart_1.png', 'rb') as f:
@@ -639,21 +624,26 @@ metric_label should describe what's being compared (e.g. "Annual Revenue", "Cust
         paybacks = [init.get("payback_months", 6) for init in initiatives]
         colors = ['#6366f1', '#4ade80', '#fbbf24']
 
-        bars = ax.barh(labels, paybacks, color=colors[:len(labels)], edgecolor='white', alpha=0.85)
+        bars = ax.barh(labels, paybacks,
+                       color=colors[:len(labels)], edgecolor='white', alpha=0.85)
 
         ax.set_xlabel('Payback Period (months)', color='white', fontsize=12)
-        ax.set_title('Estimated Payback Period by Initiative', color='white', fontsize=14, fontweight='bold')
+        ax.set_title('Estimated Payback Period by Initiative',
+                     color='white', fontsize=14, fontweight='bold')
         ax.tick_params(colors='white')
 
         for bar, val in zip(bars, paybacks):
-            ax.annotate(f'{val} mo', xy=(bar.get_width(), bar.get_y() + bar.get_height() / 2),
-                        xytext=(5, 0), textcoords="offset points", va='center', color='white', fontsize=10, fontweight='bold')
+            ax.annotate(f'{val} mo',
+                        xy=(bar.get_width(), bar.get_y() + bar.get_height() / 2),
+                        xytext=(5, 0), textcoords="offset points",
+                        va='center', color='white', fontsize=10, fontweight='bold')
 
         for spine in ax.spines.values():
             spine.set_color('#334155')
 
         plt.tight_layout()
-        plt.savefig('roi_chart_2.png', bbox_inches='tight', facecolor='#1e293b', edgecolor='none')
+        plt.savefig('roi_chart_2.png', bbox_inches='tight',
+                    facecolor='#1e293b', edgecolor='none')
         plt.close(fig)
 
         with open('roi_chart_2.png', 'rb') as f:
@@ -664,6 +654,7 @@ metric_label should describe what's being compared (e.g. "Annual Revenue", "Cust
 
     plt.rcParams.update(plt.rcParamsDefault)
     return charts
+
 
 def extract_model_export(summary: str, df, api_key: str) -> dict:
     """
@@ -680,7 +671,7 @@ ANALYSIS SUMMARY:
 
 Return ONLY a JSON object with no extra text in this exact format:
 {{
-  "analysis_type": "regression|classification|clustering|anomaly|timeseries",
+  "analysis_type": "regression|classification|clustering|anomaly|timeseries|sixsigma",
   "target_variable": "name of target variable or null",
   "model_performance": {{
     "r2": null,
@@ -697,33 +688,19 @@ Return ONLY a JSON object with no extra text in this exact format:
   "segment_averages": {{}},
   "key_thresholds": {{}},
   "base_rates": {{
-    "dry_van": null,
-    "reefer": null,
-    "flatbed": null,
-    "step_deck": null,
-    "lowboy": null,
-    "tanker": null,
-    "pup_28": null,
-    "pup_doubles": null,
-    "conestoga": null,
-    "double_drop": null,
-    "rgn": null,
-    "liftgate_van": null,
-    "reefer_liftgate": null,
-    "curtain_side": null,
-    "intermodal": null,
-    "pneumatic": null
+    "dry_van": null, "reefer": null, "flatbed": null,
+    "step_deck": null, "lowboy": null, "tanker": null,
+    "pup_28": null, "pup_doubles": null, "conestoga": null,
+    "double_drop": null, "rgn": null, "liftgate_van": null,
+    "reefer_liftgate": null, "curtain_side": null,
+    "intermodal": null, "pneumatic": null
   }},
-  "last_updated": "2025-06-11",
+  "last_updated": "2025-06-15",
   "dataset_rows": {len(df)},
   "dataset_columns": {len(df.columns)}
 }}
 
 Fill in values from the analysis where available.
-For trailer/pricing analysis: populate base_rates with actual average rates found.
-For classification: populate accuracy, f1_score, roc_auc in model_performance.
-For regression: populate r2, rmse, variance_explained in model_performance.
-For clustering: populate segment_averages with cluster characteristics.
 Leave fields as null if not applicable to this analysis type.
 """
 
@@ -741,9 +718,97 @@ Leave fields as null if not applicable to this analysis type.
             "analysis_type": "unknown",
             "model_performance": {"training_rows": len(df)},
             "top_features": [],
-            "last_updated": "2025-06-11",
+            "last_updated": "2025-06-15",
             "dataset_rows": len(df),
             "dataset_columns": len(df.columns)
+        }
+
+
+def generate_sql(summary: str, df, filename: str, api_key: str) -> dict:
+    """
+    Generates production-ready SQL queries based on the analysis.
+    Returns a dict with multiple SQL sections.
+    """
+    client = genai.Client(api_key=api_key)
+
+    col_types = []
+    for col in df.columns:
+        dtype = str(df[col].dtype)
+        if 'int' in dtype:
+            sql_type = 'INTEGER'
+        elif 'float' in dtype:
+            sql_type = 'DECIMAL(10,2)'
+        elif 'datetime' in dtype:
+            sql_type = 'DATETIME'
+        elif 'bool' in dtype:
+            sql_type = 'BOOLEAN'
+        else:
+            sql_type = 'VARCHAR(255)'
+        col_types.append(f"    {col} {sql_type}")
+
+    table_name = filename.replace('.csv', '').replace('-', '_').replace(' ', '_').lower()
+
+    prompt = f"""
+You are a senior data engineer. Based on this analysis summary, generate production-ready SQL queries.
+
+TABLE NAME: {table_name}
+COLUMNS AND TYPES:
+{chr(10).join(col_types)}
+
+ANALYSIS SUMMARY:
+{summary}
+
+Generate SQL in this exact JSON format with no extra text:
+{{
+  "table_name": "{table_name}",
+  "create_table": "CREATE TABLE {table_name} (\\n{chr(10).join(col_types)}\\n);",
+  "main_query": "Primary SELECT query that pulls the exact data used in the analysis",
+  "metric_queries": [
+    {{
+      "title": "Query title",
+      "description": "What this query does in plain English",
+      "sql": "SELECT statement here"
+    }}
+  ],
+  "monitoring_query": {{
+    "title": "Daily Monitoring Query",
+    "description": "Run this daily or weekly to track key metrics over time",
+    "sql": "SELECT statement here"
+  }}
+}}
+
+Rules:
+- Use standard ANSI SQL compatible with SQL Server, Snowflake, BigQuery, PostgreSQL
+- Add SQL comments (--) explaining each section
+- Generate 3-5 metric queries, one per major finding from the analysis
+- The monitoring query should aggregate the most important metrics by date
+- Use the actual column names from the dataset exactly as listed above
+- Include WHERE clauses that mirror the filters used in the analysis
+- Include ORDER BY clauses appropriate for each query
+- For financial impact queries include cost calculations where relevant
+- Keep each SQL query clean, readable, and well-commented
+"""
+
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=prompt
+    )
+
+    try:
+        text = response.text.strip()
+        text = text.replace("```json", "").replace("```", "").strip()
+        return json.loads(text)
+    except Exception:
+        return {
+            "table_name": table_name,
+            "create_table": f"-- Could not generate CREATE TABLE for {table_name}",
+            "main_query": "-- Could not generate main query",
+            "metric_queries": [],
+            "monitoring_query": {
+                "title": "Daily Monitoring Query",
+                "description": "Could not generate monitoring query",
+                "sql": "-- Could not generate monitoring query"
+            }
         }
 
 
@@ -798,7 +863,7 @@ Keep responses concise and clear — the user is likely a business leader.
     return response.text
 
 
-def run_agent(goal: str, df, api_key: str, max_turns: int = 8):
+def run_agent(goal: str, df, api_key: str, filename: str = "dataset.csv", max_turns: int = 8):
     """Main agent loop. Returns a dict with all analysis results."""
     client = genai.Client(api_key=api_key)
 
@@ -868,6 +933,10 @@ Start by reasoning about what steps to take, then write Python code to begin.
     if final_summary:
         model_export = extract_model_export(final_summary, df, api_key)
 
+    sql_queries = {}
+    if final_summary:
+        sql_queries = generate_sql(final_summary, df, filename, api_key)
+
     return {
         "summary": final_summary,
         "charts": all_charts,
@@ -877,5 +946,6 @@ Start by reasoning about what steps to take, then write Python code to begin.
         "recommendations": recommendations,
         "quality_report": quality_report,
         "confidence_scores": confidence_scores,
-        "model_export": model_export
+        "model_export": model_export,
+        "sql_queries": sql_queries
     }
