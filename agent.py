@@ -798,7 +798,10 @@ Rules:
         text = response.text.strip()
         text = text.replace("```json", "").replace("```", "").strip()
         return json.loads(text)
+        print(f"SQL generated successfully for table: {result.get('table_name', 'unknown')}")
     except Exception:
+        print(f"SQL generation failed: {e}")
+        print(f"Raw response: {response.text[:500]}")
         return {
             "table_name": table_name,
             "create_table": f"-- Could not generate CREATE TABLE for {table_name}",
