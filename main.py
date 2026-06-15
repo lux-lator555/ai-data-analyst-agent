@@ -46,18 +46,24 @@ async def analyze(
 ):
     contents = await file.read()
     df = pd.read_csv(io.BytesIO(contents))
-    result = run_agent(goal=goal, df=df, api_key=api_key)
+    result = run_agent(
+        goal=goal,
+        df=df,
+        api_key=api_key,
+        filename=file.filename or "dataset.csv"
+    )
 
     return {
         "summary": result["summary"],
         "charts": result["charts"],
+        "roi_charts": result.get("roi_charts", []),
         "plotly_charts": result.get("plotly_charts", []),
         "turns": result["turns"],
         "recommendations": result["recommendations"],
-        "roi_charts": result.get("roi_charts", []),
         "quality_report": result["quality_report"],
         "confidence_scores": result["confidence_scores"],
         "model_export": result.get("model_export", {}),
+        "sql_queries": result.get("sql_queries", {}),
         "rows": len(df),
         "columns": len(df.columns)
     }
