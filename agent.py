@@ -534,6 +534,7 @@ THE ASK: One specific request for resources, budget approval, or decision needed
 NEXT STEP: One specific action with a suggested timeframe (e.g. "Approve $X pilot budget by [timeframe] to begin Phase 1 within 30 days").
 
 Label this section clearly as **Executive Summary** and put it at the END.
+Do NOT include "Executive Summary**" as the first line — start directly with HEADLINE:
 
 IMPORTANT RULES:
 - Use specific numbers from the analysis everywhere — never say "significant" or "substantial" without a number
