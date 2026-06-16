@@ -513,6 +513,45 @@ What happens if nothing changes:
 - Operational risk
 - Cumulative cost over 12 months of inaction
 
+**8. Implementation Playbook**
+For each recommended initiative provide a detailed step-by-step checklist organized into phases.
+Base the phases, actions, and roles entirely on what the data and analysis revealed — do not assume any specific industry or domain.
+
+- Phase 1 — Planning: specific planning actions with checkboxes (□)
+- Phase 2 — Execution: specific implementation steps with checkboxes (□)
+- Phase 3 — Measurement: specific measurement and adjustment steps with checkboxes (□)
+
+Rules:
+- Each action must be specific, actionable, and assignable to a named role derived from the context of the analysis
+- Use the actual metric names, column names, and findings from the analysis to make actions concrete
+- Include a "Definition of Done" for each phase — one sentence describing what completion looks like
+- Never use industry-specific jargon unless it appeared in the data
+- The playbook should work whether the dataset is about customers, trailers, patients, employees, or financial transactions
+
+**9. Stakeholder Communication Templates**
+For each initiative generate 2 ready-to-use communication templates.
+Base the tone, roles, and content entirely on what the analysis found — do not assume any specific industry.
+
+Template 1 — Initiative Kickoff (to the implementation team):
+- Subject line that references the specific initiative and metric being improved
+- Opening sentence stating the business problem with the exact metric value from the analysis
+- What we are doing, why it matters, and the expected outcome in specific numbers
+- Each person's role and their specific first action
+- Timeline and next checkpoint
+
+Template 2 — Executive Sponsor Update (to senior leadership):
+- Subject line with the initiative name and a key metric
+- One paragraph status summary referencing specific metrics from the analysis
+- What is on track and what requires a leadership decision
+- The specific ask — a decision, budget approval, or resource needed
+
+Rules:
+- Pre-fill every template with actual numbers, metric names, dollar figures, and role names from the analysis
+- Never use placeholder text like [INSERT NAME] — use role titles instead (e.g. "VP Operations", "Director of Analytics")
+- Templates should feel ready to send with minimal editing
+- Adapt the tone to the context — operational datasets get more direct language, customer/marketing datasets get more relationship-focused language
+Label this section clearly as **Stakeholder Communication Templates**.
+
 **Executive Summary**
 Write this like a board presentation slide. Structure it as:
 
