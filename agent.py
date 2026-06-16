@@ -455,54 +455,93 @@ def get_business_recommendations(summary: str, api_key: str) -> str:
     client = genai.Client(api_key=api_key)
 
     prompt = f"""
-You are a senior business strategy consultant reviewing a data analysis report.
-
-Based on the following data analysis findings, generate a structured set of
-business recommendations for a non-technical business leader.
+You are a senior McKinsey-level business strategy consultant reviewing a data analysis report.
+Your job is to produce the most compelling, specific, and actionable business recommendations possible.
 
 ANALYSIS FINDINGS:
 {summary}
 
-Please provide ALL of the following sections:
+Produce ALL of the following sections. Be SPECIFIC — use actual numbers from the analysis, not vague estimates.
 
-1. **Key Findings** — The 3-5 most important insights from the data in plain English
+**1. Key Findings**
+The 3-5 most important insights. Each finding must:
+- State the specific metric and its value (e.g. "79% of yard transactions exceed the 2.5 hour dwell target")
+- Explain the business implication in one sentence
+- State the financial impact where possible
 
-2. **Recommended Initiatives** — Ranked from highest to lowest priority, each with:
-   - Rank (1 being most important)
-   - What to do
-   - Why it matters
-   - Expected impact
-   - Effort required (Low/Medium/High)
-   - Priority score (High/Medium/Low)
+**2. Recommended Initiatives**
+Rank from highest to lowest priority. For each initiative include:
+- Rank and initiative name
+- What to do (specific actions, not vague directions)
+- Why it matters (link to a specific finding)
+- Expected impact (specific metric improvement, e.g. "reduce dwell time from 5.7 to 3.2 hours")
+- Effort required (Low/Medium/High) with brief justification
+- Implementation risk (Low/Medium/High) with brief justification
+- Suggested owner/role (e.g. "VP Operations", "Fleet Manager", "IT Director")
+- Dependencies (what must happen first)
+- Success criteria (exact metric that proves this worked)
 
-3. **Initiative ROI Scorecard** — For each initiative provide a table with:
-   - Initiative name
-   - Estimated implementation cost
-   - Estimated annual revenue impact or cost savings
-   - ROI percentage
-   - Estimated payback period
-   Label this section clearly as **Initiative ROI Scorecard**
-   Format as a markdown table with columns: Initiative | Est. Cost | Revenue Impact | ROI | Payback Period
+**3. Initiative ROI Scorecard**
+Format as a markdown table:
+Initiative | Est. Cost | Annual Savings | ROI % | Payback Period | Risk
 
-4. **KPIs to Track** — How to measure success for each initiative
+**4. 30 / 60 / 90 Day Action Plan**
+Not a vague 6 month roadmap — specific actions by timeframe:
+- Days 1-30: Quick wins and immediate actions (no budget required)
+- Days 31-60: Pilot programs and initial investments
+- Days 61-90: Scale what worked, measure results, adjust
 
-5. **Quick Wins** — 1-2 things that could be implemented immediately
+**5. KPIs and Success Metrics**
+For each initiative list:
+- Primary KPI (the one number that proves success)
+- Baseline value (current state from the analysis)
+- Target value (what success looks like)
+- Measurement frequency (daily/weekly/monthly)
+- Data source (where to pull this metric)
 
-6. **6 Month Roadmap** — A suggested timeline for implementing the initiatives
+**6. What-If Scenarios**
+3 scenarios with specific financial projections:
+- Conservative (20% improvement): $X saved
+- Base case (recommended initiatives): $X saved
+- Aggressive (full transformation): $X saved
+Include assumptions for each scenario.
 
-7. **What-If Scenarios** — 2-3 financial impact estimates.
-   Label this section clearly as **What-If Scenarios**.
+**7. Cost of Inaction**
+What happens if nothing changes:
+- Financial cost per month of delay
+- Competitive risk
+- Operational risk
+- Cumulative cost over 12 months of inaction
 
-**Executive Summary** — A concise summary for C-suite leadership containing:
-   - One sentence describing the single biggest opportunity
-   - Exactly 3 bullet points of key findings in plain English
-   - The total financial opportunity in one bold number
-   - The single most important action to take right now
-   Label this section clearly as **Executive Summary** and put it at the END.
+**Executive Summary**
+Write this like a board presentation slide. Structure it as:
 
-Write this for a business leader, not a data scientist.
-Avoid technical jargon. Focus on business impact and actionable steps.
-Use realistic estimates based on the actual data findings.
+HEADLINE: One sentence leading with the total dollar opportunity.
+
+SITUATION: One sentence describing the current state with a specific metric.
+
+COMPLICATION: One sentence on why this is urgent — the cost of inaction.
+
+RESOLUTION: One sentence on the recommended path forward.
+
+KEY METRICS (show exactly 3 numbers that tell the story):
+- [Metric 1]: [Value] — [what it means]
+- [Metric 2]: [Value] — [what it means]
+- [Metric 3]: [Value] — [what it means]
+
+THE ASK: One specific request for resources, budget approval, or decision needed.
+
+NEXT STEP: One specific action with a suggested timeframe (e.g. "Approve $X pilot budget by [timeframe] to begin Phase 1 within 30 days").
+
+Label this section clearly as **Executive Summary** and put it at the END.
+
+IMPORTANT RULES:
+- Use specific numbers from the analysis everywhere — never say "significant" or "substantial" without a number
+- Every initiative must have a named owner role
+- Every KPI must have a baseline and target value
+- The Executive Summary must lead with a dollar figure
+- Write for a VP or C-suite audience — confident, direct, no hedging
+- Avoid data science jargon entirely
 """
 
     response = client.models.generate_content(
