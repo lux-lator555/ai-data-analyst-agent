@@ -61,6 +61,7 @@ async def analyze(
         "turns": result["turns"],
         "recommendations": result["recommendations"],
         "quality_report": result["quality_report"],
+        "devils_advocate": result.get("devils_advocate", ""),
         "confidence_scores": result["confidence_scores"],
         "model_export": result.get("model_export", {}),
         "sql_queries": result.get("sql_queries", {}),

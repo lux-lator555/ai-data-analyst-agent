@@ -521,6 +521,69 @@ Respond in this exact JSON format with no extra text:
             "caveats": "Confidence scoring unavailable."
         }
 
+def get_devils_advocate(summary: str, recommendations: str, api_key: str) -> str:
+    """
+    Plays devil's advocate and stress-tests the analysis findings.
+    Returns 5 specific challenges to the findings with verdicts.
+    """
+    client = genai.Client(api_key=api_key)
+
+    prompt = f"""
+You are a senior data scientist and skeptical peer reviewer.
+Your job is to stress-test this analysis by finding weaknesses, 
+assumptions, and potential flaws — BEFORE the findings are presented to leadership.
+
+ANALYSIS SUMMARY:
+{summary}
+
+BUSINESS RECOMMENDATIONS:
+{recommendations}
+
+Generate exactly 5 specific challenges to these findings. For each challenge:
+
+1. Name the finding being challenged
+2. State the specific concern or weakness
+3. Explain why this matters for the business decision
+4. Give a verdict: VALID CONCERN / MODERATE CONCERN / FINDING HOLDS UP
+5. Suggest one specific way to address or test this concern
+
+Focus on these types of challenges:
+- Sample size or statistical power concerns
+- Correlation vs causation confusion
+- Temporal validity (does this hold over time?)
+- External validity (does this generalize beyond this dataset?)
+- Missing confounding variables
+- Over-optimistic ROI or financial projections
+- Data quality issues that affect conclusions
+- Selection bias in the dataset
+- Assumptions that may not hold in production
+
+Format your response as:
+
+**Devil's Advocate Review — 5 Challenges to These Findings**
+
+**Challenge 1: [Short title]**
+- **Finding being challenged:** [specific finding]
+- **The concern:** [specific weakness or assumption]
+- **Why it matters:** [business impact of being wrong]
+- **Verdict:** VALID CONCERN / MODERATE CONCERN / FINDING HOLDS UP
+- **How to address it:** [specific action to test or mitigate this concern]
+
+[repeat for challenges 2-5]
+
+**Overall Robustness Rating:** X/5 findings are robust without further validation.
+
+Be specific — reference actual numbers, column names, and findings from the analysis.
+Be constructive — the goal is to strengthen the analysis, not dismiss it.
+Be honest — if a finding is genuinely robust, say so.
+"""
+
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=prompt
+    )
+
+    return response.text
 
 def get_business_recommendations(summary: str, api_key: str) -> str:
     """Generates actionable business recommendations from the analysis summary."""
@@ -1083,6 +1146,10 @@ Start by reasoning about what steps to take, then write Python code to begin.
     if final_summary:
         confidence_scores = get_confidence_scores(final_summary, api_key)
 
+    devils_advocate = ""
+    if final_summary:
+        devils_advocate = get_devils_advocate(final_summary, recommendations, api_key)
+
     model_export = {}
     if final_summary:
         model_export = extract_model_export(final_summary, df, api_key)
@@ -1099,6 +1166,7 @@ Start by reasoning about what steps to take, then write Python code to begin.
         "turns": len(messages),
         "recommendations": recommendations,
         "quality_report": quality_report,
+        "devils_advocate": devils_advocate,
         "confidence_scores": confidence_scores,
         "model_export": model_export,
         "sql_queries": sql_queries
