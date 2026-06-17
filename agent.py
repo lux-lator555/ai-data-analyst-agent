@@ -34,6 +34,7 @@ from lightgbm import LGBMClassifier, LGBMRegressor
 from scipy import stats
 from scipy.stats import chi2_contingency, ttest_ind, mannwhitneyu, shapiro, f_oneway, kruskal, spearmanr, pearsonr
 from statsmodels.tsa.holtwinters import ExponentialSmoothing
+from sklearn.model_selection import TimeSeriesSplit
 import shap
 
 try:
@@ -147,6 +148,13 @@ You are given a dataset and a goal. You reason step by step like a senior data s
      * If SMOTE_AVAILABLE is False, use class_weight='balanced' parameter instead
      * Print class distribution before and after balancing
      * Never apply SMOTE to test data
+   - If dataset has a date/time column AND the goal involves prediction or forecasting → use Time Series Cross-Validation:
+     * Use TimeSeriesSplit with n_splits=5
+     * NEVER use random k-fold for time series data — it leaks future data into training
+     * Print each fold: training date range, test date range, and metric score
+     * Report mean ± standard deviation across all folds
+     * Explain why time series CV was used instead of random CV
+     * Generate a visualization showing the train/test splits across time
 
 6. EVALUATE using the right metrics:
    - Classification → accuracy, precision, recall, F1, confusion matrix, ROC-AUC
@@ -198,6 +206,8 @@ You are given a dataset and a goal. You reason step by step like a senior data s
 - For trend analysis: always state trend direction and what it means for the business
 - For Six Sigma analysis: always state the current sigma level and target sigma level clearly
 - For Six Sigma analysis: always quantify the financial impact of moving from current to target sigma level
+- For time series data: ALWAYS use TimeSeriesSplit instead of random cross_val_score — random CV leaks future data
+- For time series data: print the date range of each fold's train and test set
 """
 
 
@@ -261,6 +271,7 @@ def get_ml_tools(df):
         "r2_score": r2_score,
         "LabelEncoder": LabelEncoder,
         "StandardScaler": StandardScaler,
+        "TimeSeriesSplit": TimeSeriesSplit,
     }
 
 
