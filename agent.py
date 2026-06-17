@@ -36,6 +36,7 @@ from scipy.stats import chi2_contingency, ttest_ind, mannwhitneyu, shapiro, f_on
 from statsmodels.tsa.holtwinters import ExponentialSmoothing
 from sklearn.model_selection import TimeSeriesSplit
 from sklearn.ensemble import StackingClassifier, StackingRegressor
+from sklearn.calibration import CalibratedClassifierCV, calibration_curve
 import shap
 
 try:
@@ -180,6 +181,22 @@ You are given a dataset and a goal. You reason step by step like a senior data s
 6. EVALUATE using the right metrics:
    - Classification → accuracy, precision, recall, F1, confusion matrix, ROC-AUC
    - Regression → RMSE, MAE, R² score
+   - For classification problems, ALWAYS check model calibration:
+     * Use calibration_curve to calculate fraction of positives vs mean predicted probability
+     * Generate a calibration curve chart (reliability diagram):
+       - X axis: mean predicted probability (0 to 1)
+       - Y axis: fraction of actual positives
+       - Plot a diagonal reference line (perfect calibration)
+       - Plot the model's actual calibration curve
+       - Points above the diagonal = model underestimates probability
+       - Points below the diagonal = model overestimates probability
+     * Calculate the Brier Score (lower is better, 0 = perfect, 0.25 = no skill)
+     * If the model is poorly calibrated (curve deviates significantly from diagonal):
+       - Apply CalibratedClassifierCV with method='sigmoid' (Platt scaling)
+       - Show calibration curve before AND after calibration
+       - Report Brier Score improvement
+     * Explain in plain English what the calibration means for business decisions
+     * e.g. "When the model predicts 70% churn probability, customers actually churn X% of the time"
 
 7. GENERATE SHAP values to explain model predictions:
    - Use shap.TreeExplainer for Random Forest, XGBoost, LightGBM
@@ -246,6 +263,8 @@ You are given a dataset and a goal. You reason step by step like a senior data s
 - ALWAYS run target leakage detection before modeling — this is mandatory
 - If a feature has correlation > 0.85 with the target, drop it and explain the leakage risk
 - Never model with leaked features — flag and remove them first
+- For classification: ALWAYS generate a calibration curve chart and report the Brier Score
+- For classification: if Brier Score > 0.20, apply Platt scaling and show improvement
 """
 
 
@@ -312,6 +331,8 @@ def get_ml_tools(df):
         "TimeSeriesSplit": TimeSeriesSplit,
         "StackingClassifier": StackingClassifier,
         "StackingRegressor": StackingRegressor,
+        "CalibratedClassifierCV": CalibratedClassifierCV,
+        "calibration_curve": calibration_curve,
     }
 
 
