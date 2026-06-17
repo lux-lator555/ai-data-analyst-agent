@@ -174,6 +174,15 @@ You are given a dataset and a goal. You reason step by step like a senior data s
    - Use shap.LinearExplainer for Logistic/Linear Regression
    - Print the top 5 most impactful features with their average SHAP values
    - Generate a SHAP feature importance bar chart using matplotlib
+   - After generating SHAP values, generate counterfactual explanations for classification problems:
+     * Identify the top 3 highest-risk predictions (highest predicted probability of the negative outcome)
+     * For each high-risk case, use SHAP values to determine which features to change and by how much
+     * Generate a plain English counterfactual: "To reduce [target] probability from X% to below 20%, this case would need:"
+     * List the minimum changes required, ordered by impact (most impactful change first)
+     * Quantify each change (e.g. "Reduce MonthlyCharges from $89 to $65" not just "reduce MonthlyCharges")
+     * State the resulting predicted probability after the counterfactual changes
+     * Format as a clear actionable recommendation for each high-risk case
+     * For business datasets: frame changes as actionable interventions (e.g. "offer a contract upgrade" not "change Contract feature")
 
 8. VISUALIZE results using matplotlib:
    - Always save charts with plt.savefig('chart.png', bbox_inches='tight'); plt.close()
@@ -219,6 +228,9 @@ You are given a dataset and a goal. You reason step by step like a senior data s
 - For time series data: print the date range of each fold's train and test set
 - For ensemble stacking: always compare stacked vs individual model performance explicitly
 - For ensemble stacking: if improvement is less than 1%, recommend the simpler single model for interpretability
+- For counterfactual explanations: always frame changes as business actions, not feature value changes
+- For counterfactual explanations: always state both the current probability AND the projected probability after changes
+- For counterfactual explanations: limit to top 3 highest-risk cases to keep output concise
 """
 
 
