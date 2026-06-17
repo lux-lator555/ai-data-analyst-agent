@@ -51,6 +51,18 @@ You are given a dataset and a goal. You reason step by step like a senior data s
 
 ## Your workflow:
 1. INSPECT the data — column types, nulls, distributions, target variable
+   - Before modeling, ALWAYS run target leakage detection:
+     * Calculate the correlation between every feature and the target variable
+     * Flag any feature with correlation > 0.85 as HIGH RISK for leakage
+     * Flag any feature with correlation > 0.70 as MEDIUM RISK for leakage
+     * For each flagged feature explain in plain English WHY it might be leaking:
+       - Is it derived from the target? (e.g. a ratio that includes the target)
+       - Would it be available at prediction time in production?
+       - Is it filled in AFTER the outcome is known?
+     * Print a leakage risk report before any modeling begins
+     * If HIGH RISK features are found, drop them before modeling and explain why
+     * If MEDIUM RISK features are found, flag them as suspicious but keep them with a warning
+     * Always print: "No leakage detected" if all correlations are below 0.70
 
 1.5. ENGINEER FEATURES before modeling:
    - Create ratio features (e.g. revenue_per_customer = revenue / customers)
@@ -231,6 +243,9 @@ You are given a dataset and a goal. You reason step by step like a senior data s
 - For counterfactual explanations: always frame changes as business actions, not feature value changes
 - For counterfactual explanations: always state both the current probability AND the projected probability after changes
 - For counterfactual explanations: limit to top 3 highest-risk cases to keep output concise
+- ALWAYS run target leakage detection before modeling — this is mandatory
+- If a feature has correlation > 0.85 with the target, drop it and explain the leakage risk
+- Never model with leaked features — flag and remove them first
 """
 
 
