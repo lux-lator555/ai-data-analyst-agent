@@ -35,6 +35,7 @@ from scipy import stats
 from scipy.stats import chi2_contingency, ttest_ind, mannwhitneyu, shapiro, f_oneway, kruskal, spearmanr, pearsonr
 from statsmodels.tsa.holtwinters import ExponentialSmoothing
 from sklearn.model_selection import TimeSeriesSplit
+from sklearn.ensemble import StackingClassifier, StackingRegressor
 import shap
 
 try:
@@ -131,6 +132,14 @@ You are given a dataset and a goal. You reason step by step like a senior data s
    - For large datasets (>5000 rows): prefer LightGBM or XGBoost (faster)
    - For small datasets (<1000 rows): consider SVM or Logistic Regression
    - Always compare at least 2 models
+   - After training individual models, always attempt ensemble stacking:
+     * Use the top 2-3 individual models as base estimators
+     * Use Logistic Regression (classification) or Ridge (regression) as the meta-learner
+     * Train the stacked ensemble using cross-validated predictions (cv=5)
+     * Compare stacked ensemble performance vs best individual model
+     * Report the improvement (e.g. "+2.4% ROC-AUC over best single model")
+     * Only recommend the stacked ensemble if it outperforms individual models by >1%
+     * If improvement is minimal, note this and recommend the simpler model instead
 
 4. CONSIDER hyperparameters — don't just use defaults
 
@@ -208,6 +217,8 @@ You are given a dataset and a goal. You reason step by step like a senior data s
 - For Six Sigma analysis: always quantify the financial impact of moving from current to target sigma level
 - For time series data: ALWAYS use TimeSeriesSplit instead of random cross_val_score — random CV leaks future data
 - For time series data: print the date range of each fold's train and test set
+- For ensemble stacking: always compare stacked vs individual model performance explicitly
+- For ensemble stacking: if improvement is less than 1%, recommend the simpler single model for interpretability
 """
 
 
@@ -272,6 +283,8 @@ def get_ml_tools(df):
         "LabelEncoder": LabelEncoder,
         "StandardScaler": StandardScaler,
         "TimeSeriesSplit": TimeSeriesSplit,
+        "StackingClassifier": StackingClassifier,
+        "StackingRegressor": StackingRegressor,
     }
 
 
