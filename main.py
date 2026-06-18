@@ -45,7 +45,13 @@ async def analyze(
     api_key: str = Form(...)
 ):
     contents = await file.read()
-    df = pd.read_csv(io.BytesIO(contents))
+    filename = file.filename or "dataset.csv"
+    if filename.endswith(".xlsx") or filename.endswith(".xls"):
+        df = pd.read_excel(io.BytesIO(contents))
+    elif filename.endswith(".json"):
+        df = pd.read_json(io.BytesIO(contents))
+    else:
+        df = pd.read_csv(io.BytesIO(contents))
     result = run_agent(
         goal=goal,
         df=df,
@@ -76,7 +82,13 @@ async def autodetect(
     api_key: str = Form(...)
 ):
     contents = await file.read()
-    df = pd.read_csv(io.BytesIO(contents))
+    filename = file.filename or "dataset.csv"
+    if filename.endswith(".xlsx") or filename.endswith(".xls"):
+        df = pd.read_excel(io.BytesIO(contents))
+    elif filename.endswith(".json"):
+        df = pd.read_json(io.BytesIO(contents))
+    else:
+        df = pd.read_csv(io.BytesIO(contents))
     result = auto_detect_dataset(df, api_key)
     return result
 
