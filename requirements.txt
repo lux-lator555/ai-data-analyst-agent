@@ -16,3 +16,4 @@ statsmodels
 scipy
 imbalanced-learn
 openpyxl
+pdfplumber
