@@ -1028,6 +1028,96 @@ Rules:
             }
         }
 
+def generate_vba(summary: str, df, filename: str, api_key: str) -> dict:
+    """
+    Generates Excel VBA macros based on the analysis.
+    Returns a dict with multiple VBA modules.
+    """
+    client = genai.Client(api_key=api_key)
+
+    col_list = list(df.columns)
+    sheet_name = filename.replace('.csv', '').replace('.xlsx', '').replace('.xls', '').replace('.json', '').replace('.pdf', '').replace('-', '_').replace(' ', '_')
+
+    prompt = f"""
+You are a senior Excel/VBA developer. Based on this analysis summary, generate practical VBA macros
+that a business user could run in Excel to replicate and monitor the key findings.
+
+DATASET COLUMNS: {col_list}
+SHEET NAME REFERENCE: {sheet_name}
+
+ANALYSIS SUMMARY:
+{summary}
+
+Generate VBA in this exact JSON format with no extra text:
+{{
+  "workbook_setup": "VBA Sub that sets up sheet names, headers, and formatting for a new workbook",
+  "kpi_dashboard_macro": {{
+    "title": "KPI Dashboard Macro",
+    "description": "What this macro does in plain English",
+    "vba": "Complete VBA Sub that calculates and displays the key metrics found in the analysis on a Dashboard sheet"
+  }},
+  "anomaly_flagging_macro": {{
+    "title": "Anomaly Flagging Macro",
+    "description": "What this macro does in plain English",
+    "vba": "Complete VBA Sub that conditionally formats rows that match the anomaly or risk criteria found in the analysis"
+  }},
+  "chart_macro": {{
+    "title": "Chart Generation Macro",
+    "description": "What this macro does in plain English",
+    "vba": "Complete VBA Sub that creates a native Excel chart visualizing the most important finding from the analysis"
+  }},
+  "refresh_macro": {{
+    "title": "Data Refresh Macro",
+    "description": "What this macro does in plain English",
+    "vba": "Complete VBA Sub with a template for refreshing data from an external source (placeholder for connection string) and recalculating the KPIs"
+  }}
+}}
+
+Rules:
+- Write complete, working VBA — Sub/End Sub structure, proper variable declarations
+- Add VBA comments (') explaining each section
+- Reference actual column names from the dataset where relevant
+- Use realistic cell references and ranges based on the column count
+- The KPI dashboard macro should calculate the same key metrics found in the analysis
+- The anomaly macro should use the same thresholds/logic described in the analysis
+- The chart macro should chart the single most important relationship from the analysis
+- Keep macros practical — a business analyst with basic VBA knowledge should be able to use these
+- Do not use any external libraries or references beyond standard Excel VBA
+"""
+
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=prompt
+    )
+
+    try:
+        text = response.text.strip()
+        text = text.replace("```json", "").replace("```", "").strip()
+        return json.loads(text)
+    except Exception:
+        return {
+            "workbook_setup": "' Could not generate workbook setup macro",
+            "kpi_dashboard_macro": {
+                "title": "KPI Dashboard Macro",
+                "description": "Could not generate",
+                "vba": "' Could not generate KPI dashboard macro"
+            },
+            "anomaly_flagging_macro": {
+                "title": "Anomaly Flagging Macro",
+                "description": "Could not generate",
+                "vba": "' Could not generate anomaly flagging macro"
+            },
+            "chart_macro": {
+                "title": "Chart Generation Macro",
+                "description": "Could not generate",
+                "vba": "' Could not generate chart macro"
+            },
+            "refresh_macro": {
+                "title": "Data Refresh Macro",
+                "description": "Could not generate",
+                "vba": "' Could not generate refresh macro"
+            }
+        }
 
 def user_msg(text):
     return types.Content(role="user", parts=[types.Part(text=text)])
@@ -1158,6 +1248,10 @@ Start by reasoning about what steps to take, then write Python code to begin.
     if final_summary:
         sql_queries = generate_sql(final_summary, df, filename, api_key)
 
+    vba_macros = {}
+    if final_summary:
+        vba_macros = generate_vba(final_summary, df, filename, api_key)
+
     return {
         "summary": final_summary,
         "charts": all_charts,
@@ -1169,5 +1263,6 @@ Start by reasoning about what steps to take, then write Python code to begin.
         "devils_advocate": devils_advocate,
         "confidence_scores": confidence_scores,
         "model_export": model_export,
-        "sql_queries": sql_queries
+        "sql_queries": sql_queries,
+        "vba_macros": vba_macros
     }
