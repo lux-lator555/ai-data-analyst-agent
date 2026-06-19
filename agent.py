@@ -1093,8 +1093,12 @@ Rules:
     try:
         text = response.text.strip()
         text = text.replace("```json", "").replace("```", "").strip()
-        return json.loads(text)
-    except Exception:
+        result = json.loads(text)
+        print(f"VBA generated successfully with {len(result)} sections")
+        return result
+    except Exception as e:
+        print(f"VBA generation failed: {e}")
+        print(f"Raw response (first 1000 chars): {response.text[:1000]}")
         return {
             "workbook_setup": "' Could not generate workbook setup macro",
             "kpi_dashboard_macro": {
