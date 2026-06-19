@@ -869,6 +869,184 @@ metric_label should describe what is being compared (e.g. "Annual Revenue", "Cos
     plt.rcParams.update(plt.rcParamsDefault)
     return charts
 
+def generate_board_deck(summary: str, recommendations: str, api_key: str) -> dict:
+    """
+    Generates a 3-slide board-ready deck: the finding, the recommendation, the scenarios.
+    Returns structured content plus one chart per slide.
+    """
+    client = genai.Client(api_key=api_key)
+
+    prompt = f"""
+You are preparing a 60-second board presentation based on this analysis.
+
+ANALYSIS SUMMARY:
+{summary}
+
+BUSINESS RECOMMENDATIONS:
+{recommendations}
+
+Generate content for exactly 3 slides. Use EXACTLY this delimiter format, no JSON, no markdown fences:
+
+===SLIDE1_HEADLINE===
+[One sentence, the single biggest finding, plain English, under 16 words]
+===SLIDE1_METRIC1_VAL===
+[short value e.g. "5.7 hrs"]
+===SLIDE1_METRIC1_LBL===
+[short label e.g. "Avg dwell time vs 2.5 hr target"]
+===SLIDE1_METRIC2_VAL===
+[short value]
+===SLIDE1_METRIC2_LBL===
+[short label]
+===SLIDE1_METRIC3_VAL===
+[short value, ideally a dollar figure]
+===SLIDE1_METRIC3_LBL===
+[short label]
+===SLIDE1_CHART_TITLE===
+[chart title, e.g. "Top contributors to the problem"]
+===SLIDE1_CHART_LABELS===
+[comma separated category names, 3-5 categories, ordered highest to lowest]
+===SLIDE1_CHART_VALUES===
+[comma separated numeric values matching the labels, same order]
+
+===SLIDE2_HEADLINE===
+[One sentence framing the recommendation, under 16 words]
+===SLIDE2_REC1===
+[Initiative 1 name, under 8 words]
+===SLIDE2_REC1_IMPACT===
+[dollar impact, short, e.g. "+$361K/yr"]
+===SLIDE2_REC2===
+[Initiative 2 name, under 8 words]
+===SLIDE2_REC2_IMPACT===
+[dollar impact, short]
+===SLIDE2_REC3===
+[Initiative 3 name, under 8 words]
+===SLIDE2_REC3_IMPACT===
+[dollar impact, short]
+===SLIDE2_ASK===
+[One sentence: the budget ask and the ROI/payback, e.g. "Approve $600K to capture $722K in year-one savings — 120% ROI, 10 month payback"]
+
+===SLIDE3_HEADLINE===
+[One sentence framing the range of outcomes, under 16 words]
+===SLIDE3_CONSERVATIVE_VAL===
+[dollar value, short]
+===SLIDE3_CONSERVATIVE_LBL===
+[short label, e.g. "Quick wins only"]
+===SLIDE3_BASE_VAL===
+[dollar value, short]
+===SLIDE3_BASE_LBL===
+[short label, e.g. "Recommended path"]
+===SLIDE3_AGGRESSIVE_VAL===
+[dollar value, short]
+===SLIDE3_AGGRESSIVE_LBL===
+[short label, e.g. "Full transformation"]
+===END===
+
+Rules:
+- Every number must come from the actual analysis — no placeholders
+- Keep every text field SHORT — this is a slide, not a paragraph
+- Slide 1 chart should show whatever breakdown best explains the root cause (defect categories, segments, regions, etc.)
+- Use plain English, zero jargon, zero column names with underscores
+"""
+
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=prompt
+    )
+
+    text = response.text.strip()
+
+    def extract(start_marker, end_marker, source):
+        try:
+            start_idx = source.index(start_marker) + len(start_marker)
+            end_idx = source.index(end_marker, start_idx)
+            return source[start_idx:end_idx].strip()
+        except ValueError:
+            return ""
+
+    markers = [
+        "SLIDE1_HEADLINE", "SLIDE1_METRIC1_VAL", "SLIDE1_METRIC1_LBL",
+        "SLIDE1_METRIC2_VAL", "SLIDE1_METRIC2_LBL", "SLIDE1_METRIC3_VAL", "SLIDE1_METRIC3_LBL",
+        "SLIDE1_CHART_TITLE", "SLIDE1_CHART_LABELS", "SLIDE1_CHART_VALUES",
+        "SLIDE2_HEADLINE", "SLIDE2_REC1", "SLIDE2_REC1_IMPACT",
+        "SLIDE2_REC2", "SLIDE2_REC2_IMPACT", "SLIDE2_REC3", "SLIDE2_REC3_IMPACT", "SLIDE2_ASK",
+        "SLIDE3_HEADLINE", "SLIDE3_CONSERVATIVE_VAL", "SLIDE3_CONSERVATIVE_LBL",
+        "SLIDE3_BASE_VAL", "SLIDE3_BASE_LBL", "SLIDE3_AGGRESSIVE_VAL", "SLIDE3_AGGRESSIVE_LBL"
+    ]
+
+    values = {}
+    try:
+        for i, marker in enumerate(markers):
+            start = f"==={marker}==="
+            end = f"==={markers[i+1]}===" if i + 1 < len(markers) else "===END==="
+            values[marker] = extract(start, end, text)
+
+        # Generate Slide 1 chart
+        chart_b64 = ""
+        try:
+            labels = [l.strip() for l in values["SLIDE1_CHART_LABELS"].split(",") if l.strip()]
+            vals = [float(v.strip().replace("%", "")) for v in values["SLIDE1_CHART_VALUES"].split(",") if v.strip()]
+
+            plt.style.use('dark_background')
+            fig, ax = plt.subplots(figsize=(9, 4), facecolor='#1e293b')
+            ax.set_facecolor('#1e293b')
+
+            colors = ['#f87171', '#fb923c', '#64748b', '#64748b', '#64748b'][:len(labels)]
+            bars = ax.bar(labels, vals, color=colors, edgecolor='none', width=0.6)
+
+            for bar, val in zip(bars, vals):
+                ax.annotate(f'{val:g}%', xy=(bar.get_x() + bar.get_width() / 2, bar.get_height()),
+                            xytext=(0, 6), textcoords="offset points",
+                            ha='center', color='white', fontsize=13, fontweight='bold')
+
+            ax.set_title(values.get("SLIDE1_CHART_TITLE", ""), color='white', fontsize=13, pad=16)
+            ax.spines['top'].set_visible(False)
+            ax.spines['right'].set_visible(False)
+            ax.spines['left'].set_visible(False)
+            ax.get_yaxis().set_visible(False)
+            ax.tick_params(colors='white', labelsize=11)
+
+            plt.tight_layout()
+            plt.savefig('board_slide1.png', bbox_inches='tight', facecolor='#1e293b', edgecolor='none')
+            plt.close(fig)
+
+            with open('board_slide1.png', 'rb') as f:
+                chart_b64 = base64.b64encode(f.read()).decode('utf-8')
+            os.remove('board_slide1.png')
+            plt.rcParams.update(plt.rcParamsDefault)
+        except Exception as e:
+            print(f"Board deck chart generation failed: {e}")
+
+        return {
+            "slide1": {
+                "headline": values["SLIDE1_HEADLINE"],
+                "metrics": [
+                    {"val": values["SLIDE1_METRIC1_VAL"], "lbl": values["SLIDE1_METRIC1_LBL"]},
+                    {"val": values["SLIDE1_METRIC2_VAL"], "lbl": values["SLIDE1_METRIC2_LBL"]},
+                    {"val": values["SLIDE1_METRIC3_VAL"], "lbl": values["SLIDE1_METRIC3_LBL"]},
+                ],
+                "chart": chart_b64
+            },
+            "slide2": {
+                "headline": values["SLIDE2_HEADLINE"],
+                "recommendations": [
+                    {"text": values["SLIDE2_REC1"], "impact": values["SLIDE2_REC1_IMPACT"]},
+                    {"text": values["SLIDE2_REC2"], "impact": values["SLIDE2_REC2_IMPACT"]},
+                    {"text": values["SLIDE2_REC3"], "impact": values["SLIDE2_REC3_IMPACT"]},
+                ],
+                "ask": values["SLIDE2_ASK"]
+            },
+            "slide3": {
+                "headline": values["SLIDE3_HEADLINE"],
+                "scenarios": [
+                    {"label": "Conservative", "val": values["SLIDE3_CONSERVATIVE_VAL"], "sub": values["SLIDE3_CONSERVATIVE_LBL"]},
+                    {"label": "Base case", "val": values["SLIDE3_BASE_VAL"], "sub": values["SLIDE3_BASE_LBL"]},
+                    {"label": "Aggressive", "val": values["SLIDE3_AGGRESSIVE_VAL"], "sub": values["SLIDE3_AGGRESSIVE_LBL"]},
+                ]
+            }
+        }
+    except Exception as e:
+        print(f"Board deck generation failed: {e}")
+        return {}
 
 def extract_model_export(summary: str, df, api_key: str) -> dict:
     """
