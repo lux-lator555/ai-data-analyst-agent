@@ -1493,6 +1493,10 @@ Start by reasoning about what steps to take, then write Python code to begin.
     if final_summary:
         vba_macros = generate_vba(final_summary, df, filename, api_key)
 
+    board_deck = {}
+    if final_summary:
+        board_deck = generate_board_deck(final_summary, recommendations, api_key)
+
     return {
         "summary": final_summary,
         "charts": all_charts,
@@ -1505,5 +1509,6 @@ Start by reasoning about what steps to take, then write Python code to begin.
         "confidence_scores": confidence_scores,
         "model_export": model_export,
         "sql_queries": sql_queries,
-        "vba_macros": vba_macros
+        "vba_macros": vba_macros,
+        "board_deck": board_deck
     }
