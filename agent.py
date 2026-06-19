@@ -1031,7 +1031,7 @@ Rules:
 def generate_vba(summary: str, df, filename: str, api_key: str) -> dict:
     """
     Generates Excel VBA macros based on the analysis.
-    Returns a dict with multiple VBA modules.
+    Uses delimiter-based parsing instead of JSON to avoid quote-escaping issues with VBA code.
     """
     client = genai.Client(api_key=api_key)
 
@@ -1048,30 +1048,40 @@ SHEET NAME REFERENCE: {sheet_name}
 ANALYSIS SUMMARY:
 {summary}
 
-Generate VBA in this exact JSON format with no extra text:
-{{
-  "workbook_setup": "VBA Sub that sets up sheet names, headers, and formatting for a new workbook",
-  "kpi_dashboard_macro": {{
-    "title": "KPI Dashboard Macro",
-    "description": "What this macro does in plain English",
-    "vba": "Complete VBA Sub that calculates and displays the key metrics found in the analysis on a Dashboard sheet"
-  }},
-  "anomaly_flagging_macro": {{
-    "title": "Anomaly Flagging Macro",
-    "description": "What this macro does in plain English",
-    "vba": "Complete VBA Sub that conditionally formats rows that match the anomaly or risk criteria found in the analysis"
-  }},
-  "chart_macro": {{
-    "title": "Chart Generation Macro",
-    "description": "What this macro does in plain English",
-    "vba": "Complete VBA Sub that creates a native Excel chart visualizing the most important finding from the analysis"
-  }},
-  "refresh_macro": {{
-    "title": "Data Refresh Macro",
-    "description": "What this macro does in plain English",
-    "vba": "Complete VBA Sub with a template for refreshing data from an external source (placeholder for connection string) and recalculating the KPIs"
-  }}
-}}
+Generate 5 VBA macros. Use EXACTLY this format with no extra text, no markdown code fences, 
+no JSON — just plain text with these exact delimiters:
+
+===WORKBOOK_SETUP===
+[Complete VBA Sub for workbook/sheet setup here]
+
+===KPI_TITLE===
+KPI Dashboard Macro
+===KPI_DESCRIPTION===
+[One sentence plain English description]
+===KPI_VBA===
+[Complete VBA Sub here]
+
+===ANOMALY_TITLE===
+Anomaly Flagging Macro
+===ANOMALY_DESCRIPTION===
+[One sentence plain English description]
+===ANOMALY_VBA===
+[Complete VBA Sub here]
+
+===CHART_TITLE===
+Chart Generation Macro
+===CHART_DESCRIPTION===
+[One sentence plain English description]
+===CHART_VBA===
+[Complete VBA Sub here]
+
+===REFRESH_TITLE===
+Data Refresh Macro
+===REFRESH_DESCRIPTION===
+[One sentence plain English description]
+===REFRESH_VBA===
+[Complete VBA Sub here]
+===END===
 
 Rules:
 - Write complete, working VBA — Sub/End Sub structure, proper variable declarations
@@ -1083,6 +1093,7 @@ Rules:
 - The chart macro should chart the single most important relationship from the analysis
 - Keep macros practical — a business analyst with basic VBA knowledge should be able to use these
 - Do not use any external libraries or references beyond standard Excel VBA
+- Do NOT wrap your response in markdown code fences or JSON — use only the delimiters shown above
 """
 
     response = client.models.generate_content(
@@ -1090,15 +1101,63 @@ Rules:
         contents=prompt
     )
 
+    text = response.text.strip()
+
+    def extract_between(start_marker, end_marker, source):
+        try:
+            start_idx = source.index(start_marker) + len(start_marker)
+            end_idx = source.index(end_marker, start_idx)
+            return source[start_idx:end_idx].strip()
+        except ValueError:
+            return ""
+
     try:
-        text = response.text.strip()
-        text = text.replace("```json", "").replace("```", "").strip()
-        result = json.loads(text)
-        print(f"VBA generated successfully with {len(result)} sections")
+        workbook_setup = extract_between("===WORKBOOK_SETUP===", "===KPI_TITLE===", text)
+
+        kpi_title = extract_between("===KPI_TITLE===", "===KPI_DESCRIPTION===", text)
+        kpi_desc = extract_between("===KPI_DESCRIPTION===", "===KPI_VBA===", text)
+        kpi_vba = extract_between("===KPI_VBA===", "===ANOMALY_TITLE===", text)
+
+        anomaly_title = extract_between("===ANOMALY_TITLE===", "===ANOMALY_DESCRIPTION===", text)
+        anomaly_desc = extract_between("===ANOMALY_DESCRIPTION===", "===ANOMALY_VBA===", text)
+        anomaly_vba = extract_between("===ANOMALY_VBA===", "===CHART_TITLE===", text)
+
+        chart_title = extract_between("===CHART_TITLE===", "===CHART_DESCRIPTION===", text)
+        chart_desc = extract_between("===CHART_DESCRIPTION===", "===CHART_VBA===", text)
+        chart_vba = extract_between("===CHART_VBA===", "===REFRESH_TITLE===", text)
+
+        refresh_title = extract_between("===REFRESH_TITLE===", "===REFRESH_DESCRIPTION===", text)
+        refresh_desc = extract_between("===REFRESH_DESCRIPTION===", "===REFRESH_VBA===", text)
+        refresh_vba = extract_between("===REFRESH_VBA===", "===END===", text)
+
+        result = {
+            "workbook_setup": workbook_setup or "' Could not extract workbook setup macro",
+            "kpi_dashboard_macro": {
+                "title": kpi_title or "KPI Dashboard Macro",
+                "description": kpi_desc,
+                "vba": kpi_vba or "' Could not extract KPI dashboard macro"
+            },
+            "anomaly_flagging_macro": {
+                "title": anomaly_title or "Anomaly Flagging Macro",
+                "description": anomaly_desc,
+                "vba": anomaly_vba or "' Could not extract anomaly flagging macro"
+            },
+            "chart_macro": {
+                "title": chart_title or "Chart Generation Macro",
+                "description": chart_desc,
+                "vba": chart_vba or "' Could not extract chart macro"
+            },
+            "refresh_macro": {
+                "title": refresh_title or "Data Refresh Macro",
+                "description": refresh_desc,
+                "vba": refresh_vba or "' Could not extract refresh macro"
+            }
+        }
+        print("VBA generated successfully using delimiter parsing")
         return result
     except Exception as e:
         print(f"VBA generation failed: {e}")
-        print(f"Raw response (first 1000 chars): {response.text[:1000]}")
+        print(f"Raw response (first 1000 chars): {text[:1000]}")
         return {
             "workbook_setup": "' Could not generate workbook setup macro",
             "kpi_dashboard_macro": {
