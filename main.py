@@ -93,6 +93,7 @@ async def analyze(
         "confidence_scores": result["confidence_scores"],
         "model_export": result.get("model_export", {}),
         "sql_queries": result.get("sql_queries", {}),
+        "vba_macros": result.get("vba_macros", {}),
         "rows": len(df),
         "columns": len(df.columns)
     }
