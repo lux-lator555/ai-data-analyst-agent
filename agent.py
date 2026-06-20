@@ -1452,6 +1452,11 @@ Start by reasoning about what steps to take, then write Python code to begin.
                     raise e
 
         reply = response.text
+        if reply is None:
+            print("Gemini returned None response, retrying turn...")
+            messages.append(user_msg("Your last response was empty. Please continue your analysis with a code block or FINAL ANSWER."))
+            continue
+
         messages.append(model_msg(reply))
 
         if "FINAL ANSWER:" in reply:
