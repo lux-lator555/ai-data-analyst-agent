@@ -1016,7 +1016,7 @@ Rules:
         except Exception as e:
             print(f"Board deck chart generation failed: {e}")
 
-        return {
+        result = {
             "slide1": {
                 "headline": values["SLIDE1_HEADLINE"],
                 "metrics": [
@@ -1044,8 +1044,11 @@ Rules:
                 ]
             }
         }
+        print(f"Board deck generated successfully: headline='{result['slide1']['headline'][:50]}'")
+        return result
     except Exception as e:
         print(f"Board deck generation failed: {e}")
+        print(f"Raw response (first 500 chars): {text[:500]}")
         return {}
 
 def extract_model_export(summary: str, df, api_key: str) -> dict:
@@ -1189,9 +1192,10 @@ Rules:
     try:
         text = response.text.strip()
         text = text.replace("```json", "").replace("```", "").strip()
-        return json.loads(text)
+        result = json.loads(text)
         print(f"SQL generated successfully for table: {result.get('table_name', 'unknown')}")
-    except Exception:
+        return result
+    except Exception as e:
         print(f"SQL generation failed: {e}")
         print(f"Raw response: {response.text[:500]}")
         return {
