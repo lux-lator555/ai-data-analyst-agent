@@ -869,6 +869,146 @@ metric_label should describe what is being compared (e.g. "Annual Revenue", "Cos
     plt.rcParams.update(plt.rcParamsDefault)
     return charts
 
+def generate_monte_carlo(recommendations: str, api_key: str) -> dict:
+    """
+    Runs a Monte Carlo simulation on the projected savings/impact from the
+    business recommendations. Returns percentile results, probability
+    statements, and a histogram chart.
+    """
+    client = genai.Client(api_key=api_key)
+
+    prompt = f"""
+Extract the financial impact assumptions from this business recommendations text
+so they can be used as inputs to a Monte Carlo simulation.
+
+RECOMMENDATIONS TEXT:
+{recommendations}
+
+Return ONLY a JSON object with no extra text in this exact format:
+{{
+  "base_annual_savings": 722568,
+  "low_estimate": 289027,
+  "high_estimate": 1315625,
+  "metric_label": "Annual Savings",
+  "key_uncertain_variables": [
+    {{"name": "Adoption rate of recommended changes", "low_pct": 60, "likely_pct": 85, "high_pct": 100}},
+    {{"name": "Implementation timeline impact", "low_pct": 70, "likely_pct": 100, "high_pct": 110}},
+    {{"name": "Magnitude of root cause reduction", "low_pct": 50, "likely_pct": 100, "high_pct": 130}}
+  ]
+}}
+
+Use the actual conservative/base/aggressive numbers from the What-If Scenarios section if present.
+key_uncertain_variables should reflect 2-4 real sources of uncertainty mentioned or implied in the text
+(e.g. adoption rate, execution risk, timeline, magnitude of improvement).
+low_pct/likely_pct/high_pct represent the variable as a percentage multiplier (100 = no change).
+"""
+
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=prompt
+    )
+
+    try:
+        text = response.text.strip()
+        text = text.replace("```json", "").replace("```", "").strip()
+        inputs = json.loads(text)
+    except Exception as e:
+        print(f"Monte Carlo input extraction failed: {e}")
+        return {}
+
+    try:
+        base = float(inputs.get("base_annual_savings", 0))
+        low = float(inputs.get("low_estimate", base * 0.4))
+        high = float(inputs.get("high_estimate", base * 1.8))
+        metric_label = inputs.get("metric_label", "Annual Savings")
+        variables = inputs.get("key_uncertain_variables", [])
+
+        if base <= 0:
+            return {}
+
+        n_runs = 10000
+        rng = np.random.default_rng(42)
+
+        # Build a triangular distribution per uncertain variable, multiply together
+        multiplier = np.ones(n_runs)
+        for var in variables[:4]:
+            low_pct = float(var.get("low_pct", 70)) / 100
+            likely_pct = float(var.get("likely_pct", 100)) / 100
+            high_pct = float(var.get("high_pct", 120)) / 100
+            low_pct, high_pct = min(low_pct, high_pct), max(low_pct, high_pct)
+            likely_pct = min(max(likely_pct, low_pct), high_pct)
+            sampled = rng.triangular(low_pct, likely_pct, high_pct, n_runs)
+            multiplier *= sampled
+
+        # Normalize multiplier so its mean approximates 1.0 scaled to base
+        multiplier = multiplier / np.mean(multiplier)
+        simulated = base * multiplier
+
+        # Clip to a sane range based on extracted low/high estimates with some tolerance
+        simulated = np.clip(simulated, low * 0.5, high * 1.5)
+
+        p5 = float(np.percentile(simulated, 5))
+        p50 = float(np.percentile(simulated, 50))
+        p95 = float(np.percentile(simulated, 95))
+        mean_val = float(np.mean(simulated))
+        std_val = float(np.std(simulated))
+
+        prob_exceed_base = float(np.mean(simulated >= base)) * 100
+        prob_exceed_low = float(np.mean(simulated >= low)) * 100
+        prob_positive = float(np.mean(simulated > 0)) * 100
+
+        # Generate histogram chart
+        chart_b64 = ""
+        try:
+            plt.style.use('dark_background')
+            fig, ax = plt.subplots(figsize=(10, 5), facecolor='#1e293b')
+            ax.set_facecolor('#0f172a')
+
+            ax.hist(simulated, bins=50, color='#6366f1', alpha=0.8, edgecolor='none')
+            ax.axvline(p5, color='#f87171', linestyle='--', linewidth=2, label=f'5th percentile: ${p5:,.0f}')
+            ax.axvline(p50, color='#4ade80', linestyle='-', linewidth=2.5, label=f'Median: ${p50:,.0f}')
+            ax.axvline(p95, color='#fbbf24', linestyle='--', linewidth=2, label=f'95th percentile: ${p95:,.0f}')
+
+            ax.set_xlabel(metric_label, color='white', fontsize=12)
+            ax.set_ylabel('Number of simulated outcomes', color='white', fontsize=12)
+            ax.set_title(f'Monte Carlo Simulation — {n_runs:,} runs', color='white', fontsize=14, fontweight='bold')
+            ax.tick_params(colors='white')
+            ax.legend(facecolor='#1e293b', labelcolor='white', edgecolor='#334155', fontsize=10)
+
+            for spine in ax.spines.values():
+                spine.set_color('#334155')
+
+            plt.tight_layout()
+            plt.savefig('monte_carlo.png', bbox_inches='tight', facecolor='#1e293b', edgecolor='none')
+            plt.close(fig)
+
+            with open('monte_carlo.png', 'rb') as f:
+                chart_b64 = base64.b64encode(f.read()).decode('utf-8')
+            os.remove('monte_carlo.png')
+            plt.rcParams.update(plt.rcParamsDefault)
+        except Exception as e:
+            print(f"Monte Carlo chart generation failed: {e}")
+
+        result = {
+            "metric_label": metric_label,
+            "n_runs": n_runs,
+            "p5": p5,
+            "p50": p50,
+            "p95": p95,
+            "mean": mean_val,
+            "std": std_val,
+            "prob_exceed_base_pct": round(prob_exceed_base, 1),
+            "prob_exceed_low_pct": round(prob_exceed_low, 1),
+            "prob_positive_pct": round(prob_positive, 1),
+            "base_estimate": base,
+            "chart": chart_b64
+        }
+        print(f"Monte Carlo simulation completed: median=${p50:,.0f}, p5=${p5:,.0f}, p95=${p95:,.0f}")
+        return result
+    except Exception as e:
+        print(f"Monte Carlo simulation failed: {e}")
+        return {}
+
 def generate_board_deck(summary: str, recommendations: str, api_key: str) -> dict:
     """
     Generates a 3-slide board-ready deck: the finding, the recommendation, the scenarios.
