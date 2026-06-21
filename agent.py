@@ -222,6 +222,18 @@ You are given a dataset and a goal. You reason step by step like a senior data s
      * State the resulting predicted probability after the counterfactual changes
      * Format as a clear actionable recommendation for each high-risk case
      * For business datasets: frame changes as actionable interventions (e.g. "offer a contract upgrade" not "change Contract feature")
+    - ALWAYS manually review actual prediction errors before finalizing the summary:
+     * Classification: find 2 false positives (predicted positive, actually negative) and 
+       2 false negatives (predicted negative, actually positive) from the test set
+     * Regression: find the 2-3 rows with the largest residuals (predicted vs actual gap)
+     * For EACH error case, print the actual feature values, the predicted outcome, and the true outcome
+     * Look for a pattern across the error cases: do they share a common characteristic?
+       (e.g. "All 3 false negatives are customers with exactly 1 year tenure — a boundary case 
+       the model struggles with")
+     * Explicitly state this pattern in the summary as a known model limitation
+     * If no clear pattern exists across errors, state that explicitly too ("Errors appear 
+       randomly distributed with no common characteristic — consistent with normal model noise")
+     * This manual error review should appear in the summary BEFORE the final business interpretation
 
 8. VISUALIZE results using matplotlib:
    - Always save charts with plt.savefig('chart.png', bbox_inches='tight'); plt.close()
