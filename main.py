@@ -95,6 +95,7 @@ async def analyze(
         "sql_queries": result.get("sql_queries", {}),
         "vba_macros": result.get("vba_macros", {}),
         "board_deck": result.get("board_deck", {}),
+        "monte_carlo": result.get("monte_carlo", {}),
         "rows": len(df),
         "columns": len(df.columns)
     }

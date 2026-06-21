@@ -1621,6 +1621,10 @@ Start by reasoning about what steps to take, then write Python code to begin.
     if final_summary:
         recommendations = get_business_recommendations(final_summary, api_key)
         roi_charts = generate_roi_charts(recommendations, api_key)
+    
+    monte_carlo = {}
+    if final_summary and recommendations:
+        monte_carlo = generate_monte_carlo(recommendations, api_key)
 
     confidence_scores = {}
     if final_summary:
@@ -1659,5 +1663,6 @@ Start by reasoning about what steps to take, then write Python code to begin.
         "model_export": model_export,
         "sql_queries": sql_queries,
         "vba_macros": vba_macros,
-        "board_deck": board_deck
+        "board_deck": board_deck,
+        "monte_carlo": monte_carlo
     }
