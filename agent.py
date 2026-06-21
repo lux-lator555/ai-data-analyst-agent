@@ -179,8 +179,18 @@ You are given a dataset and a goal. You reason step by step like a senior data s
      * Generate a visualization showing the train/test splits across time
 
 6. EVALUATE using the right metrics:
+   - BEFORE evaluating any trained model, ALWAYS establish a naive baseline:
+     * Classification: calculate accuracy if you always predicted the majority class
+       (e.g. "If we always predicted 'No Churn', we'd be right 73.4% of the time")
+     * Regression: calculate RMSE/MAE if you always predicted the mean or median target value
+       (e.g. "If we always predicted the average rate of $940, RMSE would be $312")
+     * Print this baseline clearly BEFORE showing any model results
    - Classification → accuracy, precision, recall, F1, confusion matrix, ROC-AUC
    - Regression → RMSE, MAE, R² score
+   - ALWAYS explicitly state how much the trained model improves over the naive baseline:
+     * "The model improves accuracy from 73.4% (naive baseline) to 84.5% — an 11.1 point improvement"
+     * If the model barely beats the naive baseline (less than 5% relative improvement), flag this 
+       as a finding that the problem may not have strong predictive signal, and lower confidence accordingly
    - For classification problems, ALWAYS check model calibration:
      * Use calibration_curve to calculate fraction of positives vs mean predicted probability
      * Generate a calibration curve chart (reliability diagram):
