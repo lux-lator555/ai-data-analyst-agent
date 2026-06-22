@@ -287,6 +287,7 @@ You are given a dataset and a goal. You reason step by step like a senior data s
 - Never model with leaked features — flag and remove them first
 - For classification: ALWAYS generate a calibration curve chart and report the Brier Score
 - For classification: if Brier Score > 0.20, apply Platt scaling and show improvement
+- In the FINAL ANSWER: NEVER list chart filenames or describe charts as a bullet list. The charts are already captured and will be displayed automatically. Simply reference what each chart reveals in your prose narrative.
 """
 
 
