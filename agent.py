@@ -291,9 +291,9 @@ You are given a dataset and a goal. You reason step by step like a senior data s
 """
 
 
-def get_ml_tools(df):
+def get_ml_tools(df, df2=None):
     """Returns all tools available to the agent during code execution."""
-    return {
+    tools = {
         "pd": pd, "plt": plt, "sns": sns, "os": os, "np": np,
         "df": df,
         "shap": shap,
@@ -357,9 +357,12 @@ def get_ml_tools(df):
         "CalibratedClassifierCV": CalibratedClassifierCV,
         "calibration_curve": calibration_curve,
     }
+    if df2 is not None:
+        tools["df2"] = df2
+    return tools
 
 
-def run_python(code: str, df) -> tuple[str, list[str]]:
+def run_python(code: str, df, df2=None) -> tuple[str, list[str]]:
     """Executes Python code and returns (text_output, list_of_base64_charts)."""
     old_stdout = sys.stdout
     sys.stdout = buffer = io.StringIO()
@@ -1578,13 +1581,29 @@ Keep responses concise and clear — the user is likely a business leader.
     return response.text
 
 
-def run_agent(goal: str, df, api_key: str, filename: str = "dataset.csv", max_turns: int = 8):
+def run_agent(goal: str, df, api_key: str, filename: str = "dataset.csv", df2=None, filename2: str = None, max_turns: int = 8):
     """Main agent loop. Returns a dict with all analysis results."""
     client = genai.Client(api_key=api_key)
 
     quality_report = get_data_quality_report(df)
 
-    dataset_context = f"""
+    if df2 is not None:
+        dataset_context = f"""
+You have been provided with TWO datasets to compare and analyze.
+
+DATASET 1 (called 'df') — filename: {filename}
+{get_dataset_summary(df)}
+
+DATASET 2 (called 'df2') — filename: {filename2 or 'dataset2.csv'}
+{get_dataset_summary(df2)}
+
+Your goal: {goal}
+
+Both DataFrames are available in your code environment as 'df' and 'df2'.
+Start by reasoning about what type of comparison to perform, then write Python code to begin.
+"""
+    else:
+        dataset_context = f"""
 Here is the dataset you will be analyzing (as a pandas DataFrame called 'df'):
 
 {get_dataset_summary(df)}
@@ -1626,14 +1645,14 @@ Start by reasoning about what steps to take, then write Python code to begin.
             code_blocks = reply.split("```python")[1:]
             for block in code_blocks:
                 code = block.split("```")[0].strip()
-                _, charts = run_python(code, df)
+                _, charts = run_python(code, df, df2)
                 all_charts.extend(charts)
             final_summary = reply.split("FINAL ANSWER:")[-1].strip()
             break
 
         if "```python" in reply:
             code_block = reply.split("```python")[1].split("```")[0].strip()
-            output, charts = run_python(code_block, df)
+            output, charts = run_python(code_block, df, df2)
             all_charts.extend(charts)
             messages.append(user_msg(f"Code output:\n{output}\n\nContinue your analysis."))
         else:
