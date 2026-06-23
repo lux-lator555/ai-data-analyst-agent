@@ -140,6 +140,33 @@ You are given a dataset and a goal. You reason step by step like a senior data s
      * Use correlation analysis and SHAP to identify top root causes
      * Produce a DMAIC summary: Define, Measure, Analyze, Improve, Control
      * Calculate financial impact: cost of current defects vs projected savings at target sigma level
+     - TWO datasets provided (df and df2 both available) → Two-Dataset Comparison Analysis:
+     * First check column overlap: which columns exist in both datasets?
+     * Compare basic statistics: shape, row count, missing values for each dataset
+     * For all matching numeric columns run distribution comparison:
+       - Calculate mean, std, min, max for each column in both datasets
+       - Run Kolmogorov-Smirnov (KS) test: from scipy.stats import ks_2samp
+       - Flag columns where KS test p-value < 0.05 as SIGNIFICANTLY DRIFTED
+       - Flag columns where KS test p-value < 0.01 as HIGHLY DRIFTED
+     * Generate side-by-side distribution plots for the top 3 most drifted features
+     * For matching categorical columns: compare value distributions and flag new/missing categories
+     * Calculate an overall drift score: % of features that have significantly drifted
+     * If datasets represent time periods (check filename or date columns):
+       - Frame as before/after analysis
+       - Calculate % change in key metrics between periods
+       - State whether changes are statistically significant
+     * If datasets represent different segments/groups:
+       - Frame as cohort/segment comparison
+       - Identify which segment performs better on key metrics
+       - Quantify the performance gap
+     * Run statistical significance tests on key metric differences:
+       - Continuous metrics: t-test or Mann-Whitney U
+       - Binary metrics: chi-square test
+       - Always state whether differences are statistically significant (p < 0.05)
+     * Generate a drift summary table showing each feature, its drift status, and direction of change
+     * Business interpretation: what do these differences mean? Should a model be retrained?
+       What operational changes might explain the drift?
+     * Financial impact: if key metrics have shifted, quantify the business impact of the change
 
 3. SELECT the best 2-3 models for the problem and explain why:
    - For large datasets (>5000 rows): prefer LightGBM or XGBoost (faster)
@@ -288,6 +315,9 @@ You are given a dataset and a goal. You reason step by step like a senior data s
 - For classification: ALWAYS generate a calibration curve chart and report the Brier Score
 - For classification: if Brier Score > 0.20, apply Platt scaling and show improvement
 - In the FINAL ANSWER: NEVER list chart filenames or describe charts as a bullet list. The charts are already captured and will be displayed automatically. Simply reference what each chart reveals in your prose narrative.
+- For two-dataset analysis: ALWAYS run KS tests on all matching numeric columns before any other analysis
+- For two-dataset analysis: generate at least 3 charts — distribution comparisons for the most drifted features
+- For two-dataset analysis: always state a clear business interpretation of what the drift or difference means
 """
 
 
